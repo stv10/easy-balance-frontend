@@ -1,0 +1,293 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type {
+  Account,
+  DashboardSummary,
+  BudgetConfig,
+  FixedExpense,
+  Expense,
+  SSPRequest,
+  SSPResponse
+} from '../types/api';
+
+interface ApiContextType {
+  accounts: Account[];
+  summary: DashboardSummary | null;
+  isLoading: boolean;
+  token: string | null;
+  username: string | null;
+  expenseVersion: number;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  loadAccounts: () => Promise<void>;
+  loadSummary: (yearMonth?: string) => Promise<void>;
+  loadAll: (yearMonth?: string) => void;
+  getConfig: () => Promise<BudgetConfig>;
+  updateConfig: (config: BudgetConfig) => Promise<BudgetConfig>;
+  addAccount: (account: Account) => Promise<Account>;
+  updateAccount: (id: string, account: Account) => Promise<Account>;
+  deleteAccount: (id: string) => Promise<void>;
+  getFixedExpenses: () => Promise<FixedExpense[]>;
+  addFixedExpense: (expense: FixedExpense) => Promise<FixedExpense>;
+  updateFixedExpense: (id: string, expense: FixedExpense) => Promise<FixedExpense>;
+  deleteFixedExpense: (id: string) => Promise<void>;
+  getExpenses: () => Promise<Expense[]>;
+  getExpensesSSP: (request: SSPRequest) => Promise<SSPResponse<Expense>>;
+  addExpense: (expense: Expense) => Promise<Expense>;
+  deleteExpense: (id: string) => Promise<void>;
+  generateMonthlyExpenses: (yearMonth: string) => Promise<void>;
+}
+
+const ApiContext = createContext<ApiContextType | undefined>(undefined);
+
+export const useApi = () => {
+  const context = useContext(ApiContext);
+  if (!context) {
+    throw new Error('useApi must be used within an ApiProvider');
+  }
+  return context;
+};
+
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
+export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [expenseVersion, setExpenseVersion] = useState(0);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [username, setUsername] = useState<string | null>(localStorage.getItem('username'));
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    setToken(null);
+    setUsername(null);
+    setAccounts([]);
+    setSummary(null);
+  };
+
+  const login = async (u: string, p: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p }),
+      });
+      if (!res.ok) throw new Error('Invalid credentials');
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('username', data.username);
+      setToken(data.token);
+      setUsername(data.username);
+      return true;
+    } catch (err) {
+      console.error('Login failed:', err);
+      return false;
+    }
+  };
+
+  const authenticatedFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const headers = new Headers(options.headers || {});
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401 || res.status === 403) {
+      logout();
+    }
+    return res;
+  };
+
+  const loadAccounts = async () => {
+    try {
+      const res = await authenticatedFetch(`${baseUrl}/accounts`);
+      if (!res.ok) throw new Error('Failed to load accounts');
+      const data = await res.json();
+      setAccounts(data);
+    } catch (err) {
+      console.error('Error loading accounts:', err);
+    }
+  };
+
+  const loadSummary = async (yearMonth?: string) => {
+    try {
+      const url = yearMonth
+        ? `${baseUrl}/dashboard/summary?yearMonth=${yearMonth}`
+        : `${baseUrl}/dashboard/summary`;
+      const res = await authenticatedFetch(url);
+      if (!res.ok) throw new Error('Failed to load summary');
+      const data = await res.json();
+      setSummary(data);
+    } catch (err) {
+      console.error('Error loading summary:', err);
+    }
+  };
+
+  const loadAll = (yearMonth?: string) => {
+    setIsLoading(true);
+    Promise.all([loadAccounts(), loadSummary(yearMonth)]).finally(() => {
+      setIsLoading(false);
+    });
+  };
+
+  const getConfig = async (): Promise<BudgetConfig> => {
+    const res = await authenticatedFetch(`${baseUrl}/config`);
+    if (!res.ok) throw new Error('Failed to fetch config');
+    return res.json();
+  };
+
+  const updateConfig = async (config: BudgetConfig): Promise<BudgetConfig> => {
+    const res = await authenticatedFetch(`${baseUrl}/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error('Failed to update config');
+    return res.json();
+  };
+
+  const addAccount = async (account: Account): Promise<Account> => {
+    const res = await authenticatedFetch(`${baseUrl}/accounts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(account),
+    });
+    if (!res.ok) throw new Error('Failed to add account');
+    return res.json();
+  };
+
+  const updateAccount = async (id: string, account: Account): Promise<Account> => {
+    const res = await authenticatedFetch(`${baseUrl}/accounts/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(account),
+    });
+    if (!res.ok) throw new Error('Failed to update account');
+    return res.json();
+  };
+
+  const deleteAccount = async (id: string): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/accounts/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete account');
+  };
+
+  const getFixedExpenses = async (): Promise<FixedExpense[]> => {
+    const res = await authenticatedFetch(`${baseUrl}/fixed-expenses`);
+    if (!res.ok) throw new Error('Failed to fetch fixed expenses');
+    return res.json();
+  };
+
+  const addFixedExpense = async (expense: FixedExpense): Promise<FixedExpense> => {
+    const res = await authenticatedFetch(`${baseUrl}/fixed-expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense),
+    });
+    if (!res.ok) throw new Error('Failed to add fixed expense');
+    return res.json();
+  };
+
+  const updateFixedExpense = async (id: string, expense: FixedExpense): Promise<FixedExpense> => {
+    const res = await authenticatedFetch(`${baseUrl}/fixed-expenses/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense),
+    });
+    if (!res.ok) throw new Error('Failed to update fixed expense');
+    return res.json();
+  };
+
+  const deleteFixedExpense = async (id: string): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/fixed-expenses/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete fixed expense');
+  };
+
+  const getExpenses = async (): Promise<Expense[]> => {
+    const res = await authenticatedFetch(`${baseUrl}/expenses`);
+    if (!res.ok) throw new Error('Failed to fetch expenses');
+    return res.json();
+  };
+
+  const getExpensesSSP = async (request: SSPRequest): Promise<SSPResponse<Expense>> => {
+    const res = await authenticatedFetch(`${baseUrl}/expenses/ssp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!res.ok) throw new Error('Failed to fetch page of expenses');
+    return res.json();
+  };
+
+  const addExpense = async (expense: Expense): Promise<Expense> => {
+    const res = await authenticatedFetch(`${baseUrl}/expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense),
+    });
+    if (!res.ok) throw new Error('Failed to add expense');
+    const result = await res.json();
+    setExpenseVersion(v => v + 1);
+    return result;
+  };
+
+  const deleteExpense = async (id: string): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/expenses/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete expense');
+    setExpenseVersion(v => v + 1);
+  };
+
+  const generateMonthlyExpenses = async (yearMonth: string): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/dashboard/generate?yearMonth=${yearMonth}`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to generate monthly expenses');
+    const data = await res.json();
+    setSummary(data);
+  };
+
+  useEffect(() => {
+    if (token) {
+      loadAll();
+    }
+  }, [token]);
+
+  return (
+    <ApiContext.Provider
+      value={{
+        accounts,
+        summary,
+        isLoading,
+        token,
+        username,
+        expenseVersion,
+        login,
+        logout,
+        loadAccounts,
+        loadSummary,
+        loadAll,
+        getConfig,
+        updateConfig,
+        addAccount,
+        updateAccount,
+        deleteAccount,
+        getFixedExpenses,
+        addFixedExpense,
+        updateFixedExpense,
+        deleteFixedExpense,
+        getExpenses,
+        getExpensesSSP,
+        addExpense,
+        deleteExpense,
+        generateMonthlyExpenses,
+      }}
+    >
+      {children}
+    </ApiContext.Provider>
+  );
+};
