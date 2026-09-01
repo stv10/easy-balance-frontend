@@ -59,8 +59,8 @@ export const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded }
   };
 
   return (
-    <Card className="border-border shadow-sm w-full">
-      <CardHeader>
+    <Card className="border-border shadow-sm w-full shrink-0">
+      <CardHeader className="pb-3">
         <CardTitle className="text-lg font-bold flex items-center gap-2">
           <ShoppingCart className="h-5 w-5 text-primary" />
           Registrar Nuevo Gasto Variable

@@ -83,9 +83,9 @@ export const AccountsSidebar: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full">
-      <Card className="border-border shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+    <div className="flex flex-col w-full h-full min-h-0 flex-1">
+      <Card className="border-border shadow-sm w-full h-full flex flex-col min-h-0">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-primary" />
             Cuentas Bancarias
@@ -95,8 +95,8 @@ export const AccountsSidebar: React.FC = () => {
             <div className="text-xl font-bold">${totalBalance.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto pr-1">
+        <CardContent className="flex flex-col gap-4 flex-1 min-h-0 overflow-hidden">
+          <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto pr-1 max-h-64 md:max-h-none">
             {accounts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground gap-2">
                 <CreditCard className="h-8 w-8 opacity-40 stroke-[1.5]" />
@@ -139,10 +139,10 @@ export const AccountsSidebar: React.FC = () => {
             )}
           </div>
 
-          <Separator className="bg-border/50" />
+          <Separator className="bg-border/50 shrink-0" />
 
           {/* Form to add account */}
-          <form onSubmit={handleAdd} className="flex flex-col gap-3">
+          <form onSubmit={handleAdd} className="flex flex-col gap-3 shrink-0">
             <div className="text-sm font-medium text-foreground">Agregar Nueva Cuenta</div>
             <div className="flex flex-col gap-2">
               <Input

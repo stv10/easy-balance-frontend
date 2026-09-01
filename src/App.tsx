@@ -50,7 +50,7 @@ function AppContent() {
         </div>
 
         {/* Desktop Accounts Sidebar + Add Expense Form */}
-        <div className="hidden md:flex md:col-span-1 flex-col gap-6 h-full min-h-0 overflow-y-auto pr-1">
+        <div className="hidden md:flex md:col-span-1 flex-col gap-6 h-full min-h-0 overflow-hidden">
           <AccountsSidebar />
           <AddExpenseForm />
         </div>
