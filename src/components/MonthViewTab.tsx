@@ -25,6 +25,14 @@ import { toast } from 'sonner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   CheckCircle2,
   Circle,
   Undo2,
@@ -37,7 +45,9 @@ import {
   ChevronRight,
   TrendingDown,
   SearchX,
-  AlertCircle
+  AlertCircle,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 
 export const MonthViewTab: React.FC = () => {
@@ -50,11 +60,16 @@ export const MonthViewTab: React.FC = () => {
     addExpense,
     deleteExpense,
     generateMonthlyExpenses,
+    regenerateMonthlyExpenses,
     expenseVersion,
   } = useApi();
 
   // Month selector state
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+
+  // Regeneration dialog states
+  const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Mobile active tab view state
   const [activeMobileView, setActiveMobileView] = useState<'fixed' | 'variable'>('fixed');
@@ -295,6 +310,19 @@ export const MonthViewTab: React.FC = () => {
       loadExpensesList();
     } catch (err) {
       toast.error('Error al revertir el pago');
+    }
+  };
+
+  const handleRegenerate = async () => {
+    setIsRegenerating(true);
+    try {
+      await regenerateMonthlyExpenses(toYearMonthStr(currentDate));
+      toast.success('Expensas del mes regeneradas con éxito');
+      setIsRegenerateDialogOpen(false);
+    } catch (err) {
+      toast.error('Error al regenerar las expensas');
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -539,14 +567,28 @@ export const MonthViewTab: React.FC = () => {
           {/* Left Column: Cosas a Pagar */}
           <div className={`lg:col-span-2 lg:col-start-1 lg:row-start-3 lg:h-full lg:flex lg:flex-col lg:min-h-0 ${activeMobileView === 'fixed' ? 'flex' : 'hidden'} lg:flex flex-col gap-6 w-full`}>
             <Card className="border-border shadow-sm w-full lg:h-full lg:flex lg:flex-col lg:min-h-0">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  Cosas a Pagar en el Mes
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground font-normal">
-                  Controla y marca tus gastos planificados del mes
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="flex flex-col gap-1">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                    Cosas a Pagar en el Mes
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground font-normal">
+                    Controla y marca tus gastos planificados del mes
+                  </CardDescription>
+                </div>
+                {summary?.generated ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => setIsRegenerateDialogOpen(true)}
+                    disabled={isRegenerating}
+                  >
+                    <RotateCcw data-icon="inline-start" className="size-3.5" />
+                    Regenerar
+                  </Button>
+                ) : null}
               </CardHeader>
               <CardContent className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
                 <div className="flex flex-col gap-3 lg:flex-1 lg:overflow-y-auto pr-1">
@@ -952,6 +994,51 @@ export const MonthViewTab: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* Dialogo de Confirmación para Regenerar Expensas */}
+      <Dialog open={isRegenerateDialogOpen} onOpenChange={setIsRegenerateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertCircle className="size-5 text-destructive" />
+              ¿Regenerar expensas del mes?
+            </DialogTitle>
+            <DialogDescription className="text-sm pt-2 text-muted-foreground">
+              Esta acción volverá a crear las expensas fijas del mes a partir de las plantillas actuales de configuración.
+              <br /><br />
+              <strong className="text-foreground font-semibold">Importante:</strong> Todos los pagos marcados en este mes serán eliminados y los saldos de las cuentas asociadas serán restaurados automáticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setIsRegenerateDialogOpen(false)}
+              disabled={isRegenerating}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+            >
+              {isRegenerating ? (
+                <>
+                  <Loader2 className="animate-spin" data-icon="inline-start" />
+                  Regenerando...
+                </>
+              ) : (
+                <>
+                  <RotateCcw data-icon="inline-start" />
+                  Confirmar y Regenerar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

@@ -35,6 +35,7 @@ interface ApiContextType {
   addExpense: (expense: Expense) => Promise<Expense>;
   deleteExpense: (id: string) => Promise<void>;
   generateMonthlyExpenses: (yearMonth: string) => Promise<void>;
+  regenerateMonthlyExpenses: (yearMonth: string) => Promise<void>;
 }
 
 const ApiContext = createContext<ApiContextType | undefined>(undefined);
@@ -251,6 +252,20 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSummary(data);
   };
 
+  const regenerateMonthlyExpenses = async (yearMonth: string): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/dashboard/regenerate?yearMonth=${encodeURIComponent(yearMonth)}`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to regenerate monthly expenses');
+    const data = await res.json();
+    setSummary(data);
+    await Promise.all([
+      loadAccounts(),
+      loadSummary(yearMonth),
+    ]);
+    setExpenseVersion(v => v + 1);
+  };
+
   useEffect(() => {
     if (token) {
       loadAll();
@@ -285,6 +300,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addExpense,
         deleteExpense,
         generateMonthlyExpenses,
+        regenerateMonthlyExpenses,
       }}
     >
       {children}

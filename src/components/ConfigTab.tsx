@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
 import type { BudgetConfig, FixedExpense } from '../types/api';
+import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -274,88 +275,142 @@ export const ConfigTab: React.FC = () => {
 
             <div className="grid gap-4 sm:grid-cols-3 flex-1">
               {/* Vida column */}
-              <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/80 bg-muted/20">
-                <label htmlFor="pct-vida" className="text-xs font-semibold text-muted-foreground">% Vida (Fijo/Necesidades)</label>
-                <Input
-                  id="pct-vida"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={vidaPercentage || ''}
-                  onChange={(e) => setVidaPercentage(parseInt(e.target.value) || 0)}
-                  className="h-9"
-                />
-                <div className="flex flex-col gap-1 text-xs pt-1 text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Asignado:</span>
-                    <span className="font-bold text-foreground">
-                      ${getCategoryBudget(vidaPercentage).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
+              {(() => {
+                const assigned = getCategoryBudget(vidaPercentage);
+                const fixedTotal = getCategoryFixedTotal('VIDA');
+                const remaining = assigned - fixedTotal;
+                return (
+                  <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/80 bg-muted/20">
+                    <label htmlFor="pct-vida" className="text-xs font-semibold text-muted-foreground">% Vida (Fijo/Necesidades)</label>
+                    <Input
+                      id="pct-vida"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={vidaPercentage || ''}
+                      onChange={(e) => setVidaPercentage(parseInt(e.target.value) || 0)}
+                      className="h-9"
+                    />
+                    <div className="flex flex-col gap-1.5 text-xs pt-1 text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Asignado:</span>
+                        <span className="font-bold text-foreground">
+                          ${assigned.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Gastos Fijos:</span>
+                        <span className="font-medium text-foreground">
+                          ${fixedTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-border/50">
+                        <span className="font-medium text-foreground">Restante:</span>
+                        <span
+                          className={cn(
+                            "font-bold text-xs",
+                            remaining < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"
+                          )}
+                        >
+                          ${remaining.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Gastos Fijos:</span>
-                    <span className="font-medium text-foreground">
-                      ${getCategoryFixedTotal('VIDA').toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Ocio column */}
-              <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/80 bg-muted/20">
-                <label htmlFor="pct-ocio" className="text-xs font-semibold text-muted-foreground">% Ocio (Variable/Deseos)</label>
-                <Input
-                  id="pct-ocio"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={ocioPercentage || ''}
-                  onChange={(e) => setOcioPercentage(parseInt(e.target.value) || 0)}
-                  className="h-9"
-                />
-                <div className="flex flex-col gap-1 text-xs pt-1 text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Asignado:</span>
-                    <span className="font-bold text-foreground">
-                      ${getCategoryBudget(ocioPercentage).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
+              {(() => {
+                const assigned = getCategoryBudget(ocioPercentage);
+                const fixedTotal = getCategoryFixedTotal('OCIO');
+                const remaining = assigned - fixedTotal;
+                return (
+                  <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/80 bg-muted/20">
+                    <label htmlFor="pct-ocio" className="text-xs font-semibold text-muted-foreground">% Ocio (Variable/Deseos)</label>
+                    <Input
+                      id="pct-ocio"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={ocioPercentage || ''}
+                      onChange={(e) => setOcioPercentage(parseInt(e.target.value) || 0)}
+                      className="h-9"
+                    />
+                    <div className="flex flex-col gap-1.5 text-xs pt-1 text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Asignado:</span>
+                        <span className="font-bold text-foreground">
+                          ${assigned.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Gastos Fijos:</span>
+                        <span className="font-medium text-foreground">
+                          ${fixedTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-border/50">
+                        <span className="font-medium text-foreground">Restante:</span>
+                        <span
+                          className={cn(
+                            "font-bold text-xs",
+                            remaining < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"
+                          )}
+                        >
+                          ${remaining.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Gastos Fijos:</span>
-                    <span className="font-medium text-foreground">
-                      ${getCategoryFixedTotal('OCIO').toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Inversion column */}
-              <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/80 bg-muted/20">
-                <label htmlFor="pct-inversion" className="text-xs font-semibold text-muted-foreground">% Inversión (Ahorro)</label>
-                <Input
-                  id="pct-inversion"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={inversionPercentage || ''}
-                  onChange={(e) => setInversionPercentage(parseInt(e.target.value) || 0)}
-                  className="h-9"
-                />
-                <div className="flex flex-col gap-1 text-xs pt-1 text-muted-foreground">
-                  <div className="flex justify-between">
-                    <span>Asignado:</span>
-                    <span className="font-bold text-foreground">
-                      ${getCategoryBudget(inversionPercentage).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
+              {(() => {
+                const assigned = getCategoryBudget(inversionPercentage);
+                const fixedTotal = getCategoryFixedTotal('INVERSION');
+                const remaining = assigned - fixedTotal;
+                return (
+                  <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/80 bg-muted/20">
+                    <label htmlFor="pct-inversion" className="text-xs font-semibold text-muted-foreground">% Inversión (Ahorro)</label>
+                    <Input
+                      id="pct-inversion"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={inversionPercentage || ''}
+                      onChange={(e) => setInversionPercentage(parseInt(e.target.value) || 0)}
+                      className="h-9"
+                    />
+                    <div className="flex flex-col gap-1.5 text-xs pt-1 text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Asignado:</span>
+                        <span className="font-bold text-foreground">
+                          ${assigned.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Gastos Fijos:</span>
+                        <span className="font-medium text-foreground">
+                          ${fixedTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 border-t border-border/50">
+                        <span className="font-medium text-foreground">Restante:</span>
+                        <span
+                          className={cn(
+                            "font-bold text-xs",
+                            remaining < 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"
+                          )}
+                        >
+                          ${remaining.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Gastos Fijos:</span>
-                    <span className="font-medium text-foreground">
-                      ${getCategoryFixedTotal('INVERSION').toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
 
