@@ -198,7 +198,13 @@ export const MonthViewTab: React.FC = () => {
     loadExpensesList();
   }, [pageIndex, pageSize, filterCategory, filterAccount, filterDateFrom, filterDateTo, expenseVersion]);
 
-  // Calculations mirroring Angular methods
+  // Calculations mirroring Angular methods and custom balances
+  const totalRealBalance = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+  const unpaidPlannedExpenses = (summary?.fixedExpenses ?? [])
+    .filter(fe => !fe.paid)
+    .reduce((sum, fe) => sum + (fe.amount || 0), 0);
+  const remainingRealBalance = totalRealBalance - unpaidPlannedExpenses;
+
   const getCategorySpent = (cat: string): number => {
     if (!summary || !summary.categories) return 0;
     const catData = summary.categories[cat];
@@ -464,13 +470,16 @@ export const MonthViewTab: React.FC = () => {
       ) : (
         <>
           {/* Dashboard Overview Cards - Mobile (Single Combined Card) */}
-          <Card className="block sm:hidden border-border/50 shadow-sm bg-card">
+          <Card className={`block sm:hidden border-border/50 shadow-sm bg-card ${remainingRealBalance < 0 ? 'border-destructive/30 bg-destructive/5' : ''}`}>
             <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
               <div className="flex flex-col gap-0.5">
-                <CardDescription className="text-[10px] text-muted-foreground uppercase font-semibold">Presupuesto Restante Total</CardDescription>
-                <CardTitle className={`text-xl font-bold ${(summary.totalRemaining ?? 0) < 0 ? 'text-destructive' : 'text-primary'}`}>
-                  ${(summary.totalRemaining ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <CardDescription className="text-[10px] text-muted-foreground uppercase font-semibold">Balance Restante</CardDescription>
+                <CardTitle className={`text-xl font-bold ${remainingRealBalance < 0 ? 'text-destructive' : 'text-primary'}`}>
+                  ${remainingRealBalance.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </CardTitle>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Presupuesto Restante: <strong className={(summary.totalRemaining ?? 0) < 0 ? 'text-destructive' : 'text-foreground'}>${(summary.totalRemaining ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="pt-0 flex flex-col gap-2">
@@ -495,15 +504,15 @@ export const MonthViewTab: React.FC = () => {
 
           {/* Dashboard Overview Cards - Desktop */}
           {/* Total Budget Card */}
-          <Card className={`lg:row-start-2 hidden sm:block border-border/50 shadow-sm ${(summary.totalRemaining ?? 0) < 0 ? 'border-destructive/30 bg-destructive/5' : ''}`}>
+          <Card className={`lg:row-start-2 hidden sm:block border-border/50 shadow-sm ${remainingRealBalance < 0 ? 'border-destructive/30 bg-destructive/5' : ''}`}>
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs text-muted-foreground font-normal">Presupuesto Restante</CardDescription>
-              <CardTitle className={`text-2xl font-bold ${(summary.totalRemaining ?? 0) < 0 ? 'text-destructive' : 'text-primary'}`}>
-                ${(summary.totalRemaining ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <CardDescription className="text-xs text-muted-foreground font-normal">Balance Restante</CardDescription>
+              <CardTitle className={`text-2xl font-bold ${remainingRealBalance < 0 ? 'text-destructive' : 'text-primary'}`}>
+                ${remainingRealBalance.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground">
-              Presupuesto Global: <strong>${(summary.totalBudget ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+              Presupuesto Restante: <strong className={(summary.totalRemaining ?? 0) < 0 ? 'text-destructive' : 'text-foreground'}>${(summary.totalRemaining ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
             </CardContent>
           </Card>
 
