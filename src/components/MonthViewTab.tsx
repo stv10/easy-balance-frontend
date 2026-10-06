@@ -47,7 +47,8 @@ import {
   SearchX,
   AlertCircle,
   RotateCcw,
-  Loader2
+  Loader2,
+  SlidersHorizontal
 } from 'lucide-react';
 
 export const MonthViewTab: React.FC = () => {
@@ -61,6 +62,8 @@ export const MonthViewTab: React.FC = () => {
     deleteExpense,
     generateMonthlyExpenses,
     regenerateMonthlyExpenses,
+    updateMonthlyBudget,
+    resetMonthlyBudget,
     expenseVersion,
   } = useApi();
 
@@ -70,6 +73,15 @@ export const MonthViewTab: React.FC = () => {
   // Regeneration dialog states
   const [isRegenerateDialogOpen, setIsRegenerateDialogOpen] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+
+  // Month Budget dialog states
+  const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
+  const [budgetTotalAmount, setBudgetTotalAmount] = useState<number>(0);
+  const [budgetVidaPct, setBudgetVidaPct] = useState<number>(50);
+  const [budgetOcioPct, setBudgetOcioPct] = useState<number>(30);
+  const [budgetInversionPct, setBudgetInversionPct] = useState<number>(20);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+  const [isResettingBudget, setIsResettingBudget] = useState(false);
 
   // Mobile active tab view state
   const [activeMobileView, setActiveMobileView] = useState<'fixed' | 'variable'>('fixed');
@@ -332,6 +344,57 @@ export const MonthViewTab: React.FC = () => {
     }
   };
 
+  const openBudgetDialog = () => {
+    const total = summary?.budgetConfig?.totalAmount ?? summary?.totalBudget ?? 0;
+    const vida = summary?.budgetConfig?.vidaPercentage ?? 50;
+    const ocio = summary?.budgetConfig?.ocioPercentage ?? 30;
+    const inversion = summary?.budgetConfig?.inversionPercentage ?? 20;
+    setBudgetTotalAmount(total);
+    setBudgetVidaPct(vida);
+    setBudgetOcioPct(ocio);
+    setBudgetInversionPct(inversion);
+    setIsBudgetDialogOpen(true);
+  };
+
+  const handleSaveMonthlyBudget = async () => {
+    if (budgetVidaPct + budgetOcioPct + budgetInversionPct !== 100) {
+      toast.error('La suma de porcentajes debe ser exactamente 100%');
+      return;
+    }
+    if (budgetTotalAmount < 0) {
+      toast.error('El monto total debe ser mayor o igual a 0');
+      return;
+    }
+    setIsSavingBudget(true);
+    try {
+      await updateMonthlyBudget(toYearMonthStr(currentDate), {
+        totalAmount: budgetTotalAmount,
+        vidaPercentage: budgetVidaPct,
+        ocioPercentage: budgetOcioPct,
+        inversionPercentage: budgetInversionPct,
+      });
+      toast.success('Presupuesto del mes actualizado');
+      setIsBudgetDialogOpen(false);
+    } catch (_err) {
+      toast.error('Error al actualizar el presupuesto del mes');
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
+
+  const handleResetBudget = async () => {
+    setIsResettingBudget(true);
+    try {
+      await resetMonthlyBudget(toYearMonthStr(currentDate));
+      toast.success('Presupuesto restablecido a la plantilla global');
+      setIsBudgetDialogOpen(false);
+    } catch (_err) {
+      toast.error('Error al restablecer el presupuesto');
+    } finally {
+      setIsResettingBudget(false);
+    }
+  };
+
   const updatePaymentAmount = (feId: string, amount: string) => {
     setPaymentInputs(prev => ({
       ...prev,
@@ -410,15 +473,32 @@ export const MonthViewTab: React.FC = () => {
           })}
         </div>
 
-        <Button
-          variant="ghost"
-          type="button"
-          size="icon"
-          className="h-9 w-9 hover:bg-muted shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={handleNextMonth}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            type="button"
+            size="icon"
+            className="h-9 w-9 hover:bg-muted shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={handleNextMonth}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={openBudgetDialog}
+            className="h-8 text-xs font-medium ml-1 gap-1.5"
+            title="Configurar presupuesto del mes"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Presupuesto</span>
+            {summary?.budgetConfig?.isCustom && (
+              <span className="size-1.5 rounded-full bg-primary" />
+            )}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -463,8 +543,18 @@ export const MonthViewTab: React.FC = () => {
             <AlertTitle className="text-sm font-bold">Presupuesto no configurado</AlertTitle>
             <AlertDescription className="text-xs opacity-90 font-medium">
               No hay una configuración de presupuesto activa para este período o la base de datos está vacía.
-              Por favor, ve a la pestaña de <strong>Configuración</strong> para establecer tu presupuesto global y porcentajes de categoría.
+              Por favor, ve a la pestaña de <strong>Configuración</strong> para establecer tu presupuesto global y porcentajes de categoría, o configúralo específicamente para este mes.
             </AlertDescription>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={openBudgetDialog}
+              className="mt-2 w-fit text-xs font-semibold gap-1.5"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Configurar presupuesto de este mes
+            </Button>
           </div>
         </Alert>
       ) : (
@@ -473,7 +563,14 @@ export const MonthViewTab: React.FC = () => {
           <Card className={`block sm:hidden border-border/50 shadow-sm bg-card ${remainingRealBalance < 0 ? 'border-destructive/30 bg-destructive/5' : ''}`}>
             <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
               <div className="flex flex-col gap-0.5">
-                <CardDescription className="text-[10px] text-muted-foreground uppercase font-semibold">Balance Restante</CardDescription>
+                <div className="flex items-center gap-1.5">
+                  <CardDescription className="text-[10px] text-muted-foreground uppercase font-semibold">Balance Restante</CardDescription>
+                  {summary.budgetConfig?.isCustom ? (
+                    <Badge variant="outline" className="text-[9px] py-0 px-1 border-primary/40 text-primary bg-primary/5">
+                      Personalizado
+                    </Badge>
+                  ) : null}
+                </div>
                 <CardTitle className={`text-xl font-bold ${remainingRealBalance < 0 ? 'text-destructive' : 'text-primary'}`}>
                   ${remainingRealBalance.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </CardTitle>
@@ -481,6 +578,15 @@ export const MonthViewTab: React.FC = () => {
                   Presupuesto Restante: <strong className={(summary.totalRemaining ?? 0) < 0 ? 'text-destructive' : 'text-foreground'}>${(summary.totalRemaining ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                 </div>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openBudgetDialog}
+                className="h-7 px-2 text-[11px] gap-1 shrink-0"
+              >
+                <SlidersHorizontal className="h-3 w-3" />
+                Presupuesto
+              </Button>
             </CardHeader>
             <CardContent className="pt-0 flex flex-col gap-2">
               <div className="h-px bg-border/60 my-0.5" />
@@ -506,13 +612,36 @@ export const MonthViewTab: React.FC = () => {
           {/* Total Budget Card */}
           <Card className={`lg:row-start-2 hidden sm:block border-border/50 shadow-sm ${remainingRealBalance < 0 ? 'border-destructive/30 bg-destructive/5' : ''}`}>
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs text-muted-foreground font-normal">Balance Restante</CardDescription>
+              <div className="flex items-center justify-between">
+                <CardDescription className="text-xs text-muted-foreground font-normal">Balance Restante</CardDescription>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={openBudgetDialog}
+                  className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                  title="Configurar presupuesto del mes"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Presupuesto
+                </Button>
+              </div>
               <CardTitle className={`text-2xl font-bold ${remainingRealBalance < 0 ? 'text-destructive' : 'text-primary'}`}>
                 ${remainingRealBalance.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-xs text-muted-foreground">
-              Presupuesto Restante: <strong className={(summary.totalRemaining ?? 0) < 0 ? 'text-destructive' : 'text-foreground'}>${(summary.totalRemaining ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+            <CardContent className="text-xs text-muted-foreground flex items-center justify-between">
+              <div>
+                Presupuesto Restante: <strong className={(summary.totalRemaining ?? 0) < 0 ? 'text-destructive' : 'text-foreground'}>${(summary.totalRemaining ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+              </div>
+              {summary.budgetConfig?.isCustom ? (
+                <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/40 text-primary bg-primary/5">
+                  Personalizado
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] py-0 px-1.5 text-muted-foreground">
+                  Plantilla global
+                </Badge>
+              )}
             </CardContent>
           </Card>
 
@@ -1045,6 +1174,166 @@ export const MonthViewTab: React.FC = () => {
                 </>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogo de Configuración de Presupuesto del Mes */}
+      <Dialog open={isBudgetDialogOpen} onOpenChange={setIsBudgetDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                <SlidersHorizontal className="size-4 text-primary" />
+                Presupuesto de {formatMonthCarousel(currentDate)}
+              </DialogTitle>
+              {summary?.budgetConfig?.isCustom ? (
+                <Badge variant="outline" className="text-[10px] font-normal border-primary/40 text-primary bg-primary/5">
+                  Personalizado
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                  Plantilla global
+                </Badge>
+              )}
+            </div>
+            <DialogDescription className="text-xs">
+              Ajusta el monto total y los porcentajes asignados específicamente para este mes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-2">
+            {/* Presupuesto Total */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="month-budget-total" className="text-xs font-semibold text-foreground">
+                Presupuesto Total Mensual ($)
+              </label>
+              <Input
+                id="month-budget-total"
+                type="number"
+                min="0"
+                step="0.01"
+                value={budgetTotalAmount || ''}
+                onChange={(e) => setBudgetTotalAmount(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+                className="h-9"
+              />
+            </div>
+
+            {/* Categorías (3 columnas) */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {/* VIDA */}
+              <div className="flex flex-col gap-1.5 p-3 rounded-lg border border-border/80 bg-muted/20">
+                <span className="text-[11px] font-semibold text-muted-foreground">% Vida</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={budgetVidaPct || ''}
+                  onChange={(e) => setBudgetVidaPct(parseInt(e.target.value) || 0)}
+                  className="h-8 text-xs"
+                />
+                <div className="flex flex-col gap-0.5 pt-1 text-[11px] text-muted-foreground">
+                  <span>Asignado:</span>
+                  <span className="font-semibold text-foreground">
+                    ${((budgetTotalAmount * budgetVidaPct) / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* OCIO */}
+              <div className="flex flex-col gap-1.5 p-3 rounded-lg border border-border/80 bg-muted/20">
+                <span className="text-[11px] font-semibold text-muted-foreground">% Ocio</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={budgetOcioPct || ''}
+                  onChange={(e) => setBudgetOcioPct(parseInt(e.target.value) || 0)}
+                  className="h-8 text-xs"
+                />
+                <div className="flex flex-col gap-0.5 pt-1 text-[11px] text-muted-foreground">
+                  <span>Asignado:</span>
+                  <span className="font-semibold text-foreground">
+                    ${((budgetTotalAmount * budgetOcioPct) / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* INVERSION */}
+              <div className="flex flex-col gap-1.5 p-3 rounded-lg border border-border/80 bg-muted/20">
+                <span className="text-[11px] font-semibold text-muted-foreground">% Inversión</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={budgetInversionPct || ''}
+                  onChange={(e) => setBudgetInversionPct(parseInt(e.target.value) || 0)}
+                  className="h-8 text-xs"
+                />
+                <div className="flex flex-col gap-0.5 pt-1 text-[11px] text-muted-foreground">
+                  <span>Asignado:</span>
+                  <span className="font-semibold text-foreground">
+                    ${((budgetTotalAmount * budgetInversionPct) / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Error si no suma 100 */}
+            {budgetVidaPct + budgetOcioPct + budgetInversionPct !== 100 && (
+              <Alert variant="destructive" className="py-2 px-3 text-xs flex items-center gap-2">
+                <AlertCircle className="size-4 shrink-0" />
+                <div>
+                  La suma de porcentajes debe ser exactamente 100% (actual: <strong>{budgetVidaPct + budgetOcioPct + budgetInversionPct}%</strong>)
+                </div>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row sm:justify-between gap-2 pt-2">
+            {summary?.budgetConfig?.isCustom ? (
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={handleResetBudget}
+                disabled={isSavingBudget || isResettingBudget}
+                className="text-xs text-muted-foreground hover:text-destructive order-last sm:order-first px-2"
+              >
+                <RotateCcw className="size-3.5 mr-1" data-icon="inline-start" />
+                Restablecer a plantilla global
+              </Button>
+            ) : <div />}
+
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setIsBudgetDialogOpen(false)}
+                disabled={isSavingBudget || isResettingBudget}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveMonthlyBudget}
+                disabled={
+                  isSavingBudget ||
+                  isResettingBudget ||
+                  budgetTotalAmount < 0 ||
+                  budgetVidaPct + budgetOcioPct + budgetInversionPct !== 100
+                }
+              >
+                {isSavingBudget ? (
+                  <>
+                    <Loader2 className="animate-spin" data-icon="inline-start" />
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar para este mes'
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

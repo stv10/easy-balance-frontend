@@ -6,6 +6,14 @@ export interface BudgetConfig {
   inversionPercentage: number;
 }
 
+export interface MonthlyBudgetConfig {
+  totalAmount: number;
+  vidaPercentage: number;
+  ocioPercentage: number;
+  inversionPercentage: number;
+  isCustom?: boolean;
+}
+
 export interface Account {
   id?: string;
   name: string;
@@ -55,6 +63,7 @@ export interface DashboardSummary {
   categories: { [key: string]: CategorySummary };
   fixedExpenses: MonthlyFixedExpense[];
   generated?: boolean;
+  budgetConfig?: MonthlyBudgetConfig;
 }
 
 export interface SSPFilter {

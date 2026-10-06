@@ -3,6 +3,7 @@ import type {
   Account,
   DashboardSummary,
   BudgetConfig,
+  MonthlyBudgetConfig,
   FixedExpense,
   Expense,
   SSPRequest,
@@ -36,6 +37,8 @@ interface ApiContextType {
   deleteExpense: (id: string) => Promise<void>;
   generateMonthlyExpenses: (yearMonth: string) => Promise<void>;
   regenerateMonthlyExpenses: (yearMonth: string) => Promise<void>;
+  updateMonthlyBudget: (yearMonth: string, config: MonthlyBudgetConfig) => Promise<void>;
+  resetMonthlyBudget: (yearMonth: string) => Promise<void>;
 }
 
 const ApiContext = createContext<ApiContextType | undefined>(undefined);
@@ -266,6 +269,26 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExpenseVersion(v => v + 1);
   };
 
+  const updateMonthlyBudget = async (yearMonth: string, config: MonthlyBudgetConfig): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/dashboard/budget?yearMonth=${encodeURIComponent(yearMonth)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error('Failed to update monthly budget');
+    const data = await res.json();
+    setSummary(data);
+  };
+
+  const resetMonthlyBudget = async (yearMonth: string): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/dashboard/budget/reset?yearMonth=${encodeURIComponent(yearMonth)}`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to reset monthly budget');
+    const data = await res.json();
+    setSummary(data);
+  };
+
   useEffect(() => {
     if (token) {
       loadAll();
@@ -301,6 +324,8 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteExpense,
         generateMonthlyExpenses,
         regenerateMonthlyExpenses,
+        updateMonthlyBudget,
+        resetMonthlyBudget,
       }}
     >
       {children}

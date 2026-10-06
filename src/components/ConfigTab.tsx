@@ -254,9 +254,20 @@ export const ConfigTab: React.FC = () => {
       {/* Presupuesto Global Card */}
       <Card className="border-border shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-bold flex items-center gap-2">
-            <Settings className="h-5 w-5 text-primary" />
-            Configuración de Presupuesto
+          <CardTitle className="text-lg font-bold flex justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Configuración de Presupuesto
+            </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSaveConfig}
+                disabled={isPercentageInvalid || isSavingConfig}
+                className="h-10 px-4"
+              >
+                <Save className="h-4 w-4 mr-1.5" /> Guardar Configuración
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -424,16 +435,6 @@ export const ConfigTab: React.FC = () => {
               </AlertDescription>
             </Alert>
           )}
-
-          <div className="flex justify-end pt-2">
-            <Button
-              onClick={handleSaveConfig}
-              disabled={isPercentageInvalid || isSavingConfig}
-              className="h-10 px-4"
-            >
-              <Save className="h-4 w-4 mr-1.5" /> Guardar Configuración
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
