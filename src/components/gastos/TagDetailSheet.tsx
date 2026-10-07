@@ -58,6 +58,7 @@ export const TagDetailSheet: React.FC<TagDetailSheetProps> = ({
 }) => {
   const {
     tags,
+    accounts,
     getTagHistory,
     getExpensesByTag,
     updateExpenseTag,
@@ -72,6 +73,12 @@ export const TagDetailSheet: React.FC<TagDetailSheetProps> = ({
   const [isBulkTagPopoverOpen, setIsBulkTagPopoverOpen] = useState(false);
 
   const tagColor = tagSummary?.tagColor || UNTAGGED_COLOR;
+
+  const getAccountName = (accountId?: string | null) => {
+    if (!accountId || accountId === 'NONE') return '-';
+    const acc = accounts.find((a) => a.id === accountId);
+    return acc ? acc.name : '-';
+  };
 
   const loadData = async () => {
     if (!tagSummary) return;
@@ -166,7 +173,7 @@ export const TagDetailSheet: React.FC<TagDetailSheetProps> = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl overflow-y-auto flex flex-col gap-5 p-4 sm:p-6"
+        className="w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto flex flex-col gap-5 p-4 sm:p-6"
       >
         <SheetHeader className="text-left pb-2 border-b border-border/60">
           <div className="flex items-center gap-3">
@@ -368,8 +375,9 @@ export const TagDetailSheet: React.FC<TagDetailSheetProps> = ({
                       <span className="sr-only">Seleccionar</span>
                     </TableHead>
                     <TableHead className="text-xs">Fecha / Detalle</TableHead>
+                    <TableHead className="text-xs w-28 hidden sm:table-cell">Cuenta</TableHead>
                     <TableHead className="text-xs text-right">Monto</TableHead>
-                    <TableHead className="text-xs w-36 sm:w-40">Etiqueta</TableHead>
+                    <TableHead className="text-xs w-36 sm:w-44">Etiqueta</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -414,6 +422,9 @@ export const TagDetailSheet: React.FC<TagDetailSheetProps> = ({
                               </Badge>
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground hidden sm:table-cell py-2.5">
+                          {getAccountName(expense.accountId)}
                         </TableCell>
                         <TableCell className="text-right font-mono font-bold text-xs text-foreground py-2.5">
                           {formatCurrency(expense.amount)}

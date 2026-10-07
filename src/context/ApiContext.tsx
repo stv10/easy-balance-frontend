@@ -11,6 +11,8 @@ import type {
   Tag,
   MonthlyExpensesAnalytics,
   TagMonthHistory,
+  CreateExpenseDTO,
+  UpdateExpenseDTO,
 } from '../types/api';
 
 interface ApiContextType {
@@ -41,7 +43,9 @@ interface ApiContextType {
   deleteFixedExpense: (id: string) => Promise<void>;
   getExpenses: () => Promise<Expense[]>;
   getExpensesSSP: (request: SSPRequest) => Promise<SSPResponse<Expense>>;
-  addExpense: (expense: Expense) => Promise<Expense>;
+  createExpenses: (expenses: CreateExpenseDTO[]) => Promise<Expense[]>;
+  addExpense: (expense: CreateExpenseDTO) => Promise<Expense>;
+  updateExpenses: (expenses: UpdateExpenseDTO[]) => Promise<Expense[]>;
   deleteExpense: (id: string) => Promise<void>;
   getMonthlyExpensesAnalytics: (yearMonth?: string) => Promise<MonthlyExpensesAnalytics>;
   getTagHistory: (tagId: string | null, yearMonth?: string) => Promise<TagMonthHistory[]>;
@@ -290,15 +294,34 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return res.json();
   };
 
-  const addExpense = async (expense: Expense): Promise<Expense> => {
+  const createExpenses = async (expenses: CreateExpenseDTO[]): Promise<Expense[]> => {
     const res = await authenticatedFetch(`${baseUrl}/expenses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(expense),
+      body: JSON.stringify(expenses),
     });
-    if (!res.ok) throw new Error('Failed to add expense');
+    if (!res.ok) throw new Error('Failed to add expenses');
     const result = await res.json();
     setExpenseVersion(v => v + 1);
+    await loadAccounts();
+    return result;
+  };
+
+  const addExpense = async (expense: CreateExpenseDTO): Promise<Expense> => {
+    const result = await createExpenses([expense]);
+    return result[0];
+  };
+
+  const updateExpenses = async (expenses: UpdateExpenseDTO[]): Promise<Expense[]> => {
+    const res = await authenticatedFetch(`${baseUrl}/expenses`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expenses),
+    });
+    if (!res.ok) throw new Error('Failed to update expenses');
+    const result = await res.json();
+    setExpenseVersion(v => v + 1);
+    await loadAccounts();
     return result;
   };
 
@@ -438,7 +461,9 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteFixedExpense,
         getExpenses,
         getExpensesSSP,
+        createExpenses,
         addExpense,
+        updateExpenses,
         deleteExpense,
         getMonthlyExpensesAnalytics,
         getTagHistory,

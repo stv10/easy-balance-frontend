@@ -124,3 +124,24 @@ export interface BulkUpdateExpenseTagRequest {
   tagId: string | null;
 }
 
+export interface CreateExpenseDTO {
+  description: string;
+  amount: number;
+  category: string;
+  createdAt?: string;
+  accountId?: string | null;
+  tagId?: string | null;
+  fixedExpenseId?: string | null;
+}
+
+export interface UpdateExpenseDTO {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  createdAt?: string;
+  accountId?: string | null;
+  tagId?: string | null;
+  fixedExpenseId?: string | null;
+}
+

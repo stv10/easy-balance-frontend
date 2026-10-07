@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
-import type { Expense, MonthlyFixedExpense, SSPFilter, Tag } from '../types/api';
+import type { Expense, MonthlyFixedExpense, SSPFilter, CreateExpenseDTO } from '../types/api';
 import { MonthSelector, formatMonthDisplay } from './MonthSelector';
-import { TagSelect } from '@/components/ui/TagSelect';
 import { TagIcon } from '@/components/ui/TagIcon';
+import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +42,6 @@ import {
   Check,
   Plus,
   Trash2,
-  ShoppingCart,
   Filter,
   ChevronLeft,
   ChevronRight,
@@ -51,8 +50,11 @@ import {
   AlertCircle,
   RotateCcw,
   Loader2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Pencil
 } from 'lucide-react';
+import { CreateExpensesDialog } from './expenses/CreateExpensesDialog';
+import { UpdateExpenseDialog } from './expenses/UpdateExpenseDialog';
 
 export const MonthViewTab: React.FC = () => {
   const {
@@ -101,14 +103,10 @@ export const MonthViewTab: React.FC = () => {
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
 
-  // Fast add form state
-  const [newDescription, setNewDescription] = useState('');
-  const [newAmount, setNewAmount] = useState<string>('');
-  const [newCategory, setNewCategory] = useState('VIDA');
-  const [newAccountId, setNewAccountId] = useState<string>('NONE');
-  const [newTagId, setNewTagId] = useState<string | undefined>(undefined);
-  const [newTag, setNewTag] = useState<Tag | undefined>(undefined);
-  const [isAddingExpense, setIsAddingExpense] = useState(false);
+  // Expense dialog states
+  const [isCreateExpensesOpen, setIsCreateExpensesOpen] = useState(false);
+  const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false);
+  const [selectedExpenseForEdit, setSelectedExpenseForEdit] = useState<Expense | null>(null);
 
   // Fixed expenses payment inputs mapping: feId -> { amount, accountId }
   const [paymentInputs, setPaymentInputs] = useState<{
@@ -241,39 +239,6 @@ export const MonthViewTab: React.FC = () => {
   };
 
   // Actions
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const description = newDescription.trim();
-    const amount = parseFloat(newAmount);
-    if (!description || isNaN(amount) || amount <= 0) return;
-
-    setIsAddingExpense(true);
-    try {
-      const expenseToSave: Expense = {
-        description,
-        amount,
-        category: newCategory,
-        accountId: newAccountId !== 'NONE' ? newAccountId : undefined,
-        tag: newTag,
-        tagId: newTagId,
-      };
-
-      await addExpense(expenseToSave);
-      toast.success('Gasto registrado con éxito');
-      setNewDescription('');
-      setNewAmount('');
-      setNewAccountId('NONE');
-      setNewTagId(undefined);
-      setNewTag(undefined);
-      loadAll(toYearMonthStr(currentDate));
-      loadExpensesList();
-    } catch (err) {
-      toast.error('Error al registrar el gasto');
-    } finally {
-      setIsAddingExpense(false);
-    }
-  };
-
   const handleDeleteExpense = async (id?: string) => {
     if (!id) return;
     if (!confirm('¿Estás seguro de que deseas eliminar este gasto?')) return;
@@ -297,13 +262,12 @@ export const MonthViewTab: React.FC = () => {
     }
 
     try {
-      const expenseToSave: Expense = {
+      const expenseToSave: CreateExpenseDTO = {
         description: fe.description,
         amount,
         category: fe.category,
         accountId: input.accountId !== 'NONE' ? input.accountId : undefined,
         fixedExpenseId: fe.id,
-        tag: fe.tag,
         tagId: fe.tag?.id,
       };
       await addExpense(expenseToSave);
@@ -712,33 +676,48 @@ export const MonthViewTab: React.FC = () => {
                     (summary.fixedExpenses ?? []).map((fe) => (
                       <div
                         key={fe.id}
-                        className={`flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border transition-colors gap-4 ${fe.paid ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-border bg-card'
+                        className={`flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border transition-colors gap-4 ${fe.paid ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-border bg-card'
                           }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="shrink-0">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="shrink-0 pt-0.5">
                             {fe.paid ? (
                               <CheckCircle2 className="h-5 w-5 text-emerald-500 fill-emerald-500/10" />
                             ) : (
                               <Circle className="h-5 w-5 text-muted-foreground/60" />
                             )}
                           </div>
-                          <div className="flex flex-col min-w-0 gap-1">
+                          <div className="flex flex-col min-w-0 gap-1.5">
+                            {/* Line 1: Title and Category badge */}
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold text-foreground">{fe.description}</span>
-                              <Badge variant="outline" className={`text-[10px] py-0 px-2 ${fe.category === 'VIDA' ? 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20' :
+                              <span className="text-sm font-bold text-foreground">{fe.description}</span>
+                              <Badge variant="outline" className={`text-[10px] py-0 px-2 shrink-0 ${fe.category === 'VIDA' ? 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20' :
                                 fe.category === 'OCIO' ? 'border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-50/50 dark:bg-purple-950/20' :
                                   'border-green-500/30 text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-950/20'
                                 }`}>
                                 {fe.category}
                               </Badge>
-                              {fe.tag && (
-                                <Badge variant="secondary" className="gap-1 text-[10px] font-normal size-auto px-1.5 py-0.5">
-                                  <TagIcon name={fe.tag.icon} className="size-3 text-primary" />
+                            </div>
+
+                            {/* Line 2: Tag (Always under name and category) */}
+                            {fe.tag && (
+                              <div className="flex items-center">
+                                <Badge
+                                  variant="secondary"
+                                  className="gap-1.5 text-[11px] font-normal size-auto px-2 py-0.5 border"
+                                  style={fe.tag.color ? {
+                                    backgroundColor: `${fe.tag.color}18`,
+                                    borderColor: `${fe.tag.color}40`,
+                                    color: fe.tag.color,
+                                  } : undefined}
+                                >
+                                  <TagIcon name={fe.tag.icon} className="size-3.5" />
                                   <span>{fe.tag.name}</span>
                                 </Badge>
-                              )}
-                            </div>
+                              </div>
+                            )}
+
+                            {/* Line 3: Due date */}
                             <span className="text-[10px] text-muted-foreground">
                               {fe.dueDay ? `Vence el día ${fe.dueDay}` : 'Sin vencimiento'}
                             </span>
@@ -747,22 +726,24 @@ export const MonthViewTab: React.FC = () => {
 
                         <div className="flex flex-wrap items-center gap-3 justify-end">
                           {fe.paid ? (
-                            <div className="flex flex-wrap items-center gap-3 justify-end w-full md:w-auto">
-                              <div className="text-right text-xs">
-                                <span className="text-muted-foreground mr-1">Pagado:</span>
-                                <strong className="text-foreground">${fe.actualAmount?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong>
-                              </div>
-                              <div className="text-xs bg-muted px-2 py-1 rounded border border-border flex items-center gap-1">
-                                <span className="text-[10px] text-muted-foreground">Cuenta:</span>
-                                <strong>{getAccountName(fe.accountId)}</strong>
+                            <div className="flex flex-col sm:items-end items-start gap-2 justify-center w-full md:w-auto">
+                              <div className="flex items-center gap-2.5 flex-wrap">
+                                <div className="text-right text-xs">
+                                  <span className="text-muted-foreground mr-1">Pagado:</span>
+                                  <strong className="text-foreground font-bold">${fe.actualAmount?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong>
+                                </div>
+                                <div className="text-xs bg-muted/80 px-2.5 py-1 rounded-md border border-border flex items-center gap-1 font-medium">
+                                  <span className="text-[10px] text-muted-foreground">Cuenta:</span>
+                                  <strong className="text-foreground">{getAccountName(fe.accountId)}</strong>
+                                </div>
                               </div>
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                className="h-8"
+                                className="h-7 text-xs px-2.5 cursor-pointer"
                                 onClick={() => handleRevertFixedExpense(fe)}
                               >
-                                <Undo2 className="h-3.5 w-3.5 mr-1" /> Revertir
+                                <Undo2 className="h-3 w-3 mr-1" /> Revertir
                               </Button>
                             </div>
                           ) : (
@@ -817,97 +798,21 @@ export const MonthViewTab: React.FC = () => {
 
           {/* Right Column: Gastos Variables */}
           <div className={`lg:col-span-2 lg:col-start-3 lg:row-start-3 lg:h-full lg:flex lg:flex-col lg:min-h-0 ${activeMobileView === 'variable' ? 'flex' : 'hidden'} lg:flex flex-col gap-6 w-full`}>
-            {/* Registrar Nuevo Gasto Variable - Only shown on mobile */}
-            <Card className="border-border shadow-sm w-full lg:hidden">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5 text-primary" />
-                  Registrar Nuevo Gasto Variable
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleAddExpense} className="flex flex-col md:grid md:grid-cols-2 gap-3">
-                  <div className="flex-[2] min-w-[200px]">
-                    <Input
-                      placeholder="Descripción (ej. Supermercado, Almuerzo)"
-                      value={newDescription}
-                      onChange={(e) => setNewDescription(e.target.value)}
-                      required
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-[100px]">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Monto ($)"
-                      value={newAmount}
-                      onChange={(e) => setNewAmount(e.target.value)}
-                      required
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="w-full">
-                    <Select value={newCategory} onValueChange={(val) => setNewCategory(val || 'VIDA')}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-full">
-                    <Select value={newAccountId} onValueChange={(val) => setNewAccountId(val || 'NONE')}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Cuenta (Opcional)">
-                          {(val) => {
-                            if (!val || val === 'NONE') return 'Ninguna';
-                            return accounts.find(a => a.id === val)?.name || 'Ninguna';
-                          }}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NONE">Ninguna</SelectItem>
-                        {accounts.map(acc => (
-                          <SelectItem key={acc.id} value={acc.id || 'NONE'}>
-                            {acc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="w-full md:col-span-2">
-                    <TagSelect
-                      value={newTagId}
-                      onChange={(id, tag) => {
-                        setNewTagId(id);
-                        setNewTag(tag);
-                      }}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={!newDescription.trim() || !newAmount || parseFloat(newAmount) <= 0 || isAddingExpense}
-                    className="h-9 md:col-span-2 font-semibold"
-                  >
-                    <Plus data-icon="inline-start" /> Cargar
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
             {/* Historial de Movimientos */}
             <Card className="border-border shadow-sm lg:h-full lg:flex lg:flex-col lg:min-h-0">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <Filter className="h-5 w-5 text-primary" />
                   Historial de Movimientos
                 </CardTitle>
+                <Button
+                  onClick={() => setIsCreateExpensesOpen(true)}
+                  size="sm"
+                  className="font-medium h-9"
+                >
+                  <Plus data-icon="inline-start" className="size-4" />
+                  Nuevo Gasto
+                </Button>
               </CardHeader>
               <CardContent className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col gap-4 flex flex-col lg:overflow-hidden">
                 {/* Filters Row */}
@@ -973,23 +878,21 @@ export const MonthViewTab: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <div className="rounded-md border border-border lg:flex-1 lg:min-h-0 lg:overflow-y-auto pr-1">
+                <div className="rounded-md border border-border lg:flex-1 lg:min-h-0 lg:overflow-y-auto pr-1 overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-28">Fecha</TableHead>
                         <TableHead>Descripción</TableHead>
-                        <TableHead className="w-24">Categoría</TableHead>
-                        <TableHead className="w-28">Etiqueta</TableHead>
-                        <TableHead className="w-32 text-right">Monto</TableHead>
-                        <TableHead className="w-36">Cuenta</TableHead>
-                        <TableHead className="w-12"></TableHead>
+                        <TableHead className="w-32">Clasificación</TableHead>
+                        <TableHead className="w-28">Cuenta</TableHead>
+                        <TableHead className="w-28 text-right">Monto</TableHead>
+                        <TableHead className="w-16 text-right"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody className="overflow-y-auto">
                       {expenses.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="h-28 text-center text-muted-foreground">
+                          <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
                             <div className="flex flex-col items-center justify-center gap-2">
                               <SearchX className="h-8 w-8 stroke-[1.5] opacity-40" />
                               <span className="text-sm">No se encontraron movimientos registrados</span>
@@ -998,58 +901,86 @@ export const MonthViewTab: React.FC = () => {
                         </TableRow>
                       ) : (
                         expenses.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="text-xs text-muted-foreground">{formatDate(row.createdAt)}</TableCell>
-                            <TableCell className="font-medium text-sm">
-                              <div className="flex items-center gap-2">
-                                <span>{row.description}</span>
-                                {row.fixedExpenseId && (
-                                  <Badge variant="outline" className="text-[9px] h-4 py-0 px-1 border-primary/20 text-primary bg-primary/5">
-                                    Planificado
+                          <TableRow
+                            key={row.id}
+                            className={cn(
+                              "transition-colors",
+                              row.fixedExpenseId
+                                ? "bg-primary/[0.04] hover:bg-primary/[0.08] dark:bg-primary/[0.07] dark:hover:bg-primary/[0.12] border-l-2 border-l-primary/70"
+                                : "hover:bg-muted/40"
+                            )}
+                            title={row.fixedExpenseId ? "Gasto planificado (fijo)" : undefined}
+                          >
+                            <TableCell className="py-3.5 px-3">
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <span className="font-semibold text-sm text-foreground truncate" title={row.description}>
+                                  {row.description}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {formatDate(row.createdAt)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-3.5 px-3">
+                              <div className="flex flex-col gap-1.5 items-start">
+                                <Badge variant="outline" className={`text-[10px] py-0 px-2 font-normal shrink-0 ${row.category === 'VIDA' ? 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20' :
+                                  row.category === 'OCIO' ? 'border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-50/50 dark:bg-purple-950/20' :
+                                    'border-green-500/30 text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-950/20'
+                                  }`}>
+                                  {row.category}
+                                </Badge>
+                                {row.tag && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="gap-1 text-[10px] font-normal size-auto px-1.5 py-0.5 shrink-0"
+                                    style={row.tag.color ? {
+                                      backgroundColor: `${row.tag.color}18`,
+                                      borderColor: `${row.tag.color}35`,
+                                      color: row.tag.color,
+                                    } : undefined}
+                                  >
+                                    <TagIcon name={row.tag.icon} className="size-3" />
+                                    <span className="truncate max-w-[85px]">{row.tag.name}</span>
                                   </Badge>
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={`text-[10px] py-0 px-2 font-normal ${row.category === 'VIDA' ? 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20' :
-                                row.category === 'OCIO' ? 'border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-50/50 dark:bg-purple-950/20' :
-                                  'border-green-500/30 text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-950/20'
-                                }`}>
-                                {row.category}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {row.tag ? (
-                                <Badge variant="secondary" className="gap-1 text-[10px] font-normal size-auto px-1.5 py-0.5">
-                                  <TagIcon name={row.tag.icon} className="size-3 text-primary" />
-                                  <span className="truncate max-w-[80px]">{row.tag.name}</span>
-                                </Badge>
-                              ) : (
-                                <span className="text-xs text-muted-foreground/50">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right font-bold text-sm">
-                              ${row.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </TableCell>
-                            <TableCell className="text-xs">
+                            <TableCell className="py-3.5 px-3 text-xs">
                               {row.accountId ? (
-                                <span className="bg-muted px-2 py-0.5 rounded border border-border font-medium text-foreground/80">
+                                <span className="bg-muted px-2 py-0.5 rounded border border-border font-medium text-foreground/80 truncate block max-w-[105px]" title={getAccountName(row.accountId)}>
                                   {getAccountName(row.accountId)}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground/50 font-normal">-</span>
                               )}
                             </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 hover:text-destructive text-muted-foreground/75"
-                                onClick={() => handleDeleteExpense(row.id)}
-                                title="Eliminar gasto"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            <TableCell className="py-3.5 px-3 text-right font-bold text-sm">
+                              ${row.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="py-3.5 px-2">
+                              <div className="flex items-center gap-0.5 justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:text-primary text-muted-foreground/75 cursor-pointer"
+                                  onClick={() => {
+                                    setSelectedExpenseForEdit(row);
+                                    setIsEditExpenseOpen(true);
+                                  }}
+                                  title="Editar gasto"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 hover:text-destructive text-muted-foreground/75 cursor-pointer"
+                                  onClick={() => handleDeleteExpense(row.id)}
+                                  title="Eliminar gasto"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -1309,6 +1240,28 @@ export const MonthViewTab: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialogo para crear nuevos gastos en lista */}
+      <CreateExpensesDialog
+        open={isCreateExpensesOpen}
+        onOpenChange={setIsCreateExpensesOpen}
+        onSuccess={() => {
+          loadAll(toYearMonthStr(currentDate));
+          loadExpensesList();
+        }}
+      />
+
+      {/* Dialogo para actualizar un gasto */}
+      <UpdateExpenseDialog
+        expense={selectedExpenseForEdit}
+        open={isEditExpenseOpen}
+        onOpenChange={setIsEditExpenseOpen}
+        onSuccess={() => {
+          loadAll(toYearMonthStr(currentDate));
+          loadExpensesList();
+          setSelectedExpenseForEdit(null);
+        }}
+      />
     </section>
   );
 };

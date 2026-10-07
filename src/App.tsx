@@ -3,7 +3,6 @@ import { ApiProvider, useApi } from './context/ApiContext';
 import { Login } from './components/Login';
 import { Header } from './components/Header';
 import { AccountsSidebar } from './components/AccountsSidebar';
-import { AddExpenseForm } from './components/AddExpenseForm';
 import { MonthViewTab } from './components/MonthViewTab';
 import { ConfigTab } from './components/ConfigTab';
 import { GastosTab } from './components/GastosTab';
@@ -28,9 +27,9 @@ function AppContent() {
       <Header onOpenAccounts={() => setIsMobileAccountsOpen(true)} />
 
       {/* Main Content Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 grid grid-cols-1 md:grid-cols-4 gap-6 min-h-0 overflow-hidden">
+      <main className="flex-1 w-full mx-auto p-4 md:p-8 grid grid-cols-1 md:grid-cols-5 gap-6 min-h-0 overflow-hidden">
         {/* Main columns for Tabs */}
-        <div className="md:col-span-3 h-full flex flex-col min-h-0 overflow-hidden">
+        <div className="md:col-span-4 h-full flex flex-col min-h-0 overflow-hidden">
           <Tabs
             value={activeTab}
             onValueChange={(val) => setActiveTab(val as 'month' | 'gastos' | 'config')}
@@ -63,13 +62,10 @@ function AppContent() {
           </Tabs>
         </div>
 
-        {/* Desktop Right Column Slot: Accounts & AddExpense on 'month', TagManagementCard on 'config' and 'gastos' */}
+        {/* Desktop Right Column Slot: Accounts on 'month', TagManagementCard on 'config' and 'gastos' */}
         <div className="hidden md:flex md:col-span-1 flex-col gap-6 h-full min-h-0 overflow-hidden">
           {activeTab === 'month' ? (
-            <>
-              <AccountsSidebar />
-              <AddExpenseForm />
-            </>
+            <AccountsSidebar />
           ) : (
             <TagManagementCard />
           )}
