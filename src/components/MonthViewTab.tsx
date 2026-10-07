@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
 import type { Expense, MonthlyFixedExpense, SSPFilter, Tag } from '../types/api';
+import { MonthSelector, formatMonthDisplay } from './MonthSelector';
 import { TagSelect } from '@/components/ui/TagSelect';
 import { TagIcon } from '@/components/ui/TagIcon';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -121,21 +122,6 @@ export const MonthViewTab: React.FC = () => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     return `${y}-${m}`;
-  };
-
-  const formatMonthCarousel = (date: Date) => {
-    let str = date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
-    str = str.charAt(0).toUpperCase() + str.slice(1);
-    return str.replace('.', '');
-  };
-
-  const getMonthList = (centerDate: Date) => {
-    const list = [];
-    for (let i = -2; i <= 2; i++) {
-      const d = new Date(centerDate.getFullYear(), centerDate.getMonth() + i, 1);
-      list.push(d);
-    }
-    return list;
   };
 
   // Sync date range filters when currentDate changes
@@ -436,70 +422,20 @@ export const MonthViewTab: React.FC = () => {
     }
   };
 
-  const handlePrevMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
-
-  const handleMonthSelect = (date: Date) => {
-    setCurrentDate(date);
-  };
-
-  const months = getMonthList(currentDate);
-
   return (
     <section className={isLoading || !summary || !summary.totalBudget || summary.totalBudget === 0 ? "flex flex-col gap-6" : "lg:grid lg:grid-cols-4 lg:grid-rows-[auto_auto_1fr] lg:gap-4 flex flex-col gap-8 lg:h-full lg:overflow-hidden"}>
       {/* Month Year Selector Carousel */}
-      <div className="lg:col-span-4 flex items-center justify-between bg-muted/40 p-2.5 rounded-xl border border-border/50 shadow-sm gap-2">
-        <Button
-          variant="ghost"
-          type="button"
-          size="icon"
-          className="h-9 w-9 hover:bg-muted shrink-0 text-muted-foreground hover:text-foreground"
-          onClick={handlePrevMonth}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-
-        <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full">
-          {months.map((m, index) => {
-            const isSelected = m.getFullYear() === currentDate.getFullYear() && m.getMonth() === currentDate.getMonth();
-            return (
-              <button
-                key={index}
-                type="button"
-                onClick={() => handleMonthSelect(m)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 shrink-0 select-none ${isSelected
-                  ? 'bg-primary text-primary-foreground shadow-md scale-105'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
-                  }`}
-              >
-                {formatMonthCarousel(m)}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            type="button"
-            size="icon"
-            className="h-9 w-9 hover:bg-muted shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={handleNextMonth}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-
+      <MonthSelector
+        currentDate={currentDate}
+        onMonthChange={setCurrentDate}
+        className="lg:col-span-4"
+        rightSlot={
           <Button
             variant="outline"
             size="sm"
             type="button"
             onClick={openBudgetDialog}
-            className="h-8 text-xs font-medium ml-1 gap-1.5"
+            className="h-8 text-xs font-medium ml-1 gap-1.5 cursor-pointer"
             title="Configurar presupuesto del mes"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -508,8 +444,8 @@ export const MonthViewTab: React.FC = () => {
               <span className="size-1.5 rounded-full bg-primary" />
             )}
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {isLoading ? (
         <div className="flex flex-col gap-6">
@@ -1221,7 +1157,7 @@ export const MonthViewTab: React.FC = () => {
             <div className="flex items-center justify-between pr-6">
               <DialogTitle className="flex items-center gap-2 text-base font-bold">
                 <SlidersHorizontal className="size-4 text-primary" />
-                Presupuesto de {formatMonthCarousel(currentDate)}
+                Presupuesto de {formatMonthDisplay(currentDate)}
               </DialogTitle>
               {summary?.budgetConfig?.isCustom ? (
                 <Badge variant="outline" className="text-[10px] font-normal border-primary/40 text-primary bg-primary/5">

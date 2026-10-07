@@ -6,16 +6,17 @@ import { AccountsSidebar } from './components/AccountsSidebar';
 import { AddExpenseForm } from './components/AddExpenseForm';
 import { MonthViewTab } from './components/MonthViewTab';
 import { ConfigTab } from './components/ConfigTab';
+import { GastosTab } from './components/GastosTab';
 import { TagManagementCard } from './components/TagManagementCard';
 import { Toaster } from './components/ui/sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
-import { CalendarDays, Settings } from 'lucide-react';
+import { CalendarDays, Settings, Receipt } from 'lucide-react';
 
 function AppContent() {
   const { token } = useApi();
   const [isMobileAccountsOpen, setIsMobileAccountsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'month' | 'config'>('month');
+  const [activeTab, setActiveTab] = useState<'month' | 'gastos' | 'config'>('month');
 
   if (!token) {
     return <Login />;
@@ -32,15 +33,19 @@ function AppContent() {
         <div className="md:col-span-3 h-full flex flex-col min-h-0 overflow-hidden">
           <Tabs
             value={activeTab}
-            onValueChange={(val) => setActiveTab(val as 'month' | 'config')}
+            onValueChange={(val) => setActiveTab(val as 'month' | 'gastos' | 'config')}
             className="w-full h-full flex flex-col gap-4 min-h-0 overflow-hidden"
           >
-            <TabsList className="grid w-full grid-cols-2 max-w-xs bg-muted/65 p-1 rounded-lg border border-border/50 shrink-0">
-              <TabsTrigger value="month" className="flex items-center gap-1.5 text-xs font-semibold">
+            <TabsList className="grid w-full grid-cols-3 max-w-md bg-muted/65 p-1 rounded-lg border border-border/50 shrink-0">
+              <TabsTrigger value="month" className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
                 <CalendarDays className="h-4 w-4" />
                 Vista del Mes
               </TabsTrigger>
-              <TabsTrigger value="config" className="flex items-center gap-1.5 text-xs font-semibold">
+              <TabsTrigger value="gastos" className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                <Receipt className="h-4 w-4" />
+                Gastos
+              </TabsTrigger>
+              <TabsTrigger value="config" className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
                 <Settings className="h-4 w-4" />
                 Configuración
               </TabsTrigger>
@@ -49,13 +54,16 @@ function AppContent() {
             <TabsContent value="month" className="focus-visible:outline-none flex-1 min-h-0 lg:overflow-hidden overflow-y-auto flex flex-col">
               <MonthViewTab />
             </TabsContent>
+            <TabsContent value="gastos" className="focus-visible:outline-none flex-1 min-h-0 overflow-y-auto flex flex-col">
+              <GastosTab />
+            </TabsContent>
             <TabsContent value="config" className="focus-visible:outline-none flex-1 min-h-0 overflow-y-auto pr-1">
               <ConfigTab />
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Desktop Right Column Slot: Accounts & AddExpense on 'month', TagManagementCard on 'config' */}
+        {/* Desktop Right Column Slot: Accounts & AddExpense on 'month', TagManagementCard on 'config' and 'gastos' */}
         <div className="hidden md:flex md:col-span-1 flex-col gap-6 h-full min-h-0 overflow-hidden">
           {activeTab === 'month' ? (
             <>

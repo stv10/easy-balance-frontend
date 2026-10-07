@@ -24,6 +24,7 @@ export interface Tag {
   id: string;
   name: string;
   icon: string;
+  color?: string;
 }
 
 export interface FixedExpense {
@@ -94,3 +95,32 @@ export interface SSPResponse<T> {
   totalItems: number;
   data: T[];
 }
+
+export interface MonthlyTagSummary {
+  tagId: string | null;
+  tagName: string;
+  tagIcon: string;
+  tagColor: string;
+  totalAmount: number;
+  percentage: number;
+  count: number;
+}
+
+export interface MonthlyExpensesAnalytics {
+  yearMonth: string;
+  totalAmount: number;
+  tagSummaries: MonthlyTagSummary[];
+}
+
+export interface TagMonthHistory {
+  yearMonth: string;
+  label: string;
+  amount: number;
+  isCurrent: boolean;
+}
+
+export interface BulkUpdateExpenseTagRequest {
+  expenseIds: string[];
+  tagId: string | null;
+}
+

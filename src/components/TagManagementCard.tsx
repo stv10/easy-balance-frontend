@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TagIcon } from '@/components/ui/TagIcon';
 import { IconPickerPopover } from '@/components/ui/IconPickerPopover';
+import { ColorPickerPopover } from '@/components/ui/ColorPickerPopover';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { DEFAULT_TAG_ICON_NAME } from '@/lib/tag-icons';
+import { DEFAULT_TAG_ICON_NAME, getDefaultColorForIcon } from '@/lib/tag-icons';
 import { Tag as TagLucide, Plus, Pencil, Trash2, Tags } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ export const TagManagementCard: React.FC<TagManagementCardProps> = ({ className 
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [editName, setEditName] = useState('');
   const [editIcon, setEditIcon] = useState(DEFAULT_TAG_ICON_NAME);
+  const [editColor, setEditColor] = useState('#3B82F6');
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Delete Tag state
@@ -49,7 +51,8 @@ export const TagManagementCard: React.FC<TagManagementCardProps> = ({ className 
 
     setIsCreating(true);
     try {
-      await createTag({ name, icon: newIcon });
+      const defaultColor = getDefaultColorForIcon(newIcon);
+      await createTag({ name, icon: newIcon, color: defaultColor });
       toast.success(`Etiqueta "${name}" creada`);
       setNewName('');
       setNewIcon(DEFAULT_TAG_ICON_NAME);
@@ -65,6 +68,7 @@ export const TagManagementCard: React.FC<TagManagementCardProps> = ({ className 
     setEditingTag(tag);
     setEditName(tag.name);
     setEditIcon(tag.icon || DEFAULT_TAG_ICON_NAME);
+    setEditColor(tag.color || getDefaultColorForIcon(tag.icon));
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -75,7 +79,7 @@ export const TagManagementCard: React.FC<TagManagementCardProps> = ({ className 
 
     setIsUpdating(true);
     try {
-      await updateTag(editingTag.id, { name, icon: editIcon });
+      await updateTag(editingTag.id, { name, icon: editIcon, color: editColor });
       toast.success(`Etiqueta actualizada`);
       setEditingTag(null);
     } catch (err: any) {
@@ -137,8 +141,15 @@ export const TagManagementCard: React.FC<TagManagementCardProps> = ({ className 
                 className="flex items-center justify-between p-2 rounded-lg border border-border/70 bg-card hover:bg-muted/40 transition-colors"
               >
                 <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                  <div className="size-7 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                    <TagIcon name={tag.icon} className="size-3.5 text-primary" />
+                  <div
+                    className="size-7 rounded-md border flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: `${tag.color || '#3b82f6'}1a`,
+                      borderColor: `${tag.color || '#3b82f6'}40`,
+                      color: tag.color || '#3b82f6',
+                    }}
+                  >
+                    <TagIcon name={tag.icon} className="size-3.5" />
                   </div>
                   <span className="font-medium text-xs text-foreground truncate" title={tag.name}>
                     {tag.name}
@@ -238,17 +249,21 @@ export const TagManagementCard: React.FC<TagManagementCardProps> = ({ className 
               <IconPickerPopover
                 value={editIcon}
                 onChange={setEditIcon}
-                className="size-9"
+                className="size-9 shrink-0"
               />
-              <Input
-                placeholder="Nombre de la etiqueta"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
-                className="h-9 text-xs flex-1"
-                autoFocus
+              <ColorPickerPopover
+                color={editColor}
+                onChange={setEditColor}
               />
             </div>
+            <Input
+              placeholder="Nombre de la etiqueta"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              required
+              className="h-9 text-xs"
+              autoFocus
+            />
             <DialogFooter className="gap-2 sm:gap-0 mt-2">
               <Button
                 type="button"

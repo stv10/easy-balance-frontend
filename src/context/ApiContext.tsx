@@ -8,7 +8,9 @@ import type {
   Expense,
   SSPRequest,
   SSPResponse,
-  Tag
+  Tag,
+  MonthlyExpensesAnalytics,
+  TagMonthHistory,
 } from '../types/api';
 
 interface ApiContextType {
@@ -30,8 +32,8 @@ interface ApiContextType {
   addAccount: (account: Account) => Promise<Account>;
   updateAccount: (id: string, account: Account) => Promise<Account>;
   deleteAccount: (id: string) => Promise<void>;
-  createTag: (tag: { name: string; icon?: string }) => Promise<Tag>;
-  updateTag: (id: string, tag: { name: string; icon: string }) => Promise<Tag>;
+  createTag: (tag: { name: string; icon?: string; color?: string }) => Promise<Tag>;
+  updateTag: (id: string, tag: { name: string; icon: string; color?: string }) => Promise<Tag>;
   deleteTag: (id: string) => Promise<void>;
   getFixedExpenses: () => Promise<FixedExpense[]>;
   addFixedExpense: (expense: FixedExpense) => Promise<FixedExpense>;
@@ -41,6 +43,11 @@ interface ApiContextType {
   getExpensesSSP: (request: SSPRequest) => Promise<SSPResponse<Expense>>;
   addExpense: (expense: Expense) => Promise<Expense>;
   deleteExpense: (id: string) => Promise<void>;
+  getMonthlyExpensesAnalytics: (yearMonth?: string) => Promise<MonthlyExpensesAnalytics>;
+  getTagHistory: (tagId: string | null, yearMonth?: string) => Promise<TagMonthHistory[]>;
+  getExpensesByTag: (tagId: string | null, yearMonth?: string) => Promise<Expense[]>;
+  updateExpenseTag: (expenseId: string, tagId: string | null) => Promise<Expense>;
+  bulkUpdateExpenseTag: (expenseIds: string[], tagId: string | null) => Promise<Expense[]>;
   generateMonthlyExpenses: (yearMonth: string) => Promise<void>;
   regenerateMonthlyExpenses: (yearMonth: string) => Promise<void>;
   updateMonthlyBudget: (yearMonth: string, config: MonthlyBudgetConfig) => Promise<void>;
@@ -153,7 +160,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const createTag = async (tagData: { name: string; icon?: string }): Promise<Tag> => {
+  const createTag = async (tagData: { name: string; icon?: string; color?: string }): Promise<Tag> => {
     const res = await authenticatedFetch(`${baseUrl}/tags`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -168,7 +175,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return created;
   };
 
-  const updateTag = async (id: string, tagData: { name: string; icon: string }): Promise<Tag> => {
+  const updateTag = async (id: string, tagData: { name: string; icon: string; color?: string }): Promise<Tag> => {
     const res = await authenticatedFetch(`${baseUrl}/tags/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -303,6 +310,55 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setExpenseVersion(v => v + 1);
   };
 
+  const getMonthlyExpensesAnalytics = async (yearMonth?: string): Promise<MonthlyExpensesAnalytics> => {
+    const url = yearMonth
+      ? `${baseUrl}/expenses/analytics/monthly?yearMonth=${encodeURIComponent(yearMonth)}`
+      : `${baseUrl}/expenses/analytics/monthly`;
+    const res = await authenticatedFetch(url);
+    if (!res.ok) throw new Error('Failed to load monthly expenses analytics');
+    return res.json();
+  };
+
+  const getTagHistory = async (tagId: string | null, yearMonth?: string): Promise<TagMonthHistory[]> => {
+    const params = new URLSearchParams();
+    if (tagId) params.append('tagId', tagId);
+    if (yearMonth) params.append('yearMonth', yearMonth);
+    const res = await authenticatedFetch(`${baseUrl}/expenses/analytics/tag-history?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to load tag history');
+    return res.json();
+  };
+
+  const getExpensesByTag = async (tagId: string | null, yearMonth?: string): Promise<Expense[]> => {
+    const params = new URLSearchParams();
+    if (tagId) params.append('tagId', tagId);
+    if (yearMonth) params.append('yearMonth', yearMonth);
+    const res = await authenticatedFetch(`${baseUrl}/expenses/by-tag?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to load expenses by tag');
+    return res.json();
+  };
+
+  const updateExpenseTag = async (expenseId: string, tagId: string | null): Promise<Expense> => {
+    const res = await authenticatedFetch(`${baseUrl}/expenses/${expenseId}/tag`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tagId }),
+    });
+    if (!res.ok) throw new Error('Failed to update expense tag');
+    setExpenseVersion((v) => v + 1);
+    return res.json();
+  };
+
+  const bulkUpdateExpenseTag = async (expenseIds: string[], tagId: string | null): Promise<Expense[]> => {
+    const res = await authenticatedFetch(`${baseUrl}/expenses/bulk-tag`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expenseIds, tagId }),
+    });
+    if (!res.ok) throw new Error('Failed to bulk update expense tags');
+    setExpenseVersion((v) => v + 1);
+    return res.json();
+  };
+
   const generateMonthlyExpenses = async (yearMonth: string): Promise<void> => {
     const res = await authenticatedFetch(`${baseUrl}/dashboard/generate?yearMonth=${yearMonth}`, {
       method: 'POST',
@@ -384,6 +440,11 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         getExpensesSSP,
         addExpense,
         deleteExpense,
+        getMonthlyExpensesAnalytics,
+        getTagHistory,
+        getExpensesByTag,
+        updateExpenseTag,
+        bulkUpdateExpenseTag,
         generateMonthlyExpenses,
         regenerateMonthlyExpenses,
         updateMonthlyBudget,
