@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApi } from '../context/ApiContext';
-import type { Expense } from '../types/api';
+import type { Expense, Tag } from '../types/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { TagSelect } from '@/components/ui/TagSelect';
 import { toast } from 'sonner';
 import { Plus, ShoppingCart } from 'lucide-react';
 
@@ -25,6 +26,8 @@ export const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded }
   const [newAmount, setNewAmount] = useState<string>('');
   const [newCategory, setNewCategory] = useState('VIDA');
   const [newAccountId, setNewAccountId] = useState<string>('NONE');
+  const [newTagId, setNewTagId] = useState<string | undefined>(undefined);
+  const [newTag, setNewTag] = useState<Tag | undefined>(undefined);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
 
   const categories = ['VIDA', 'OCIO', 'INVERSION'];
@@ -41,7 +44,9 @@ export const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded }
         description,
         amount,
         category: newCategory,
-        accountId: newAccountId !== 'NONE' ? newAccountId : undefined
+        accountId: newAccountId !== 'NONE' ? newAccountId : undefined,
+        tag: newTag,
+        tagId: newTagId,
       };
 
       await addExpense(expenseToSave);
@@ -49,6 +54,8 @@ export const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded }
       setNewDescription('');
       setNewAmount('');
       setNewAccountId('NONE');
+      setNewTagId(undefined);
+      setNewTag(undefined);
       loadAll();
       onExpenseAdded?.();
     } catch (err) {
@@ -123,14 +130,23 @@ export const AddExpenseForm: React.FC<AddExpenseFormProps> = ({ onExpenseAdded }
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <TagSelect
+                value={newTagId}
+                onChange={(id, tag) => {
+                  setNewTagId(id);
+                  setNewTag(tag);
+                }}
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={!newDescription.trim() || !newAmount || parseFloat(newAmount) <= 0 || isAddingExpense}
+              className="h-9 font-semibold"
+            >
+              <Plus data-icon="inline-start" /> Cargar
+            </Button>
           </div>
-          <Button
-            type="submit"
-            disabled={!newDescription.trim() || !newAmount || parseFloat(newAmount) <= 0 || isAddingExpense}
-            className="h-9"
-          >
-            <Plus className="h-4 w-4 mr-1" /> Cargar
-          </Button>
         </form>
       </CardContent>
     </Card>

@@ -20,12 +20,20 @@ export interface Account {
   balance: number;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  icon: string;
+}
+
 export interface FixedExpense {
   id?: string;
   description: string;
   amount: number;
   category: string;
   dueDay?: number;
+  tag?: Tag;
+  tagId?: string;
 }
 
 export interface Expense {
@@ -36,6 +44,8 @@ export interface Expense {
   createdAt?: string;
   accountId?: string;
   fixedExpenseId?: string;
+  tag?: Tag;
+  tagId?: string;
 }
 
 export interface MonthlyFixedExpense {
@@ -48,6 +58,7 @@ export interface MonthlyFixedExpense {
   actualAmount?: number;
   expenseId?: string;
   accountId?: string;
+  tag?: Tag;
 }
 
 export interface CategorySummary {

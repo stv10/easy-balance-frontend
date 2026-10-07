@@ -6,6 +6,7 @@ import { AccountsSidebar } from './components/AccountsSidebar';
 import { AddExpenseForm } from './components/AddExpenseForm';
 import { MonthViewTab } from './components/MonthViewTab';
 import { ConfigTab } from './components/ConfigTab';
+import { TagManagementCard } from './components/TagManagementCard';
 import { Toaster } from './components/ui/sonner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
@@ -14,6 +15,7 @@ import { CalendarDays, Settings } from 'lucide-react';
 function AppContent() {
   const { token } = useApi();
   const [isMobileAccountsOpen, setIsMobileAccountsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'month' | 'config'>('month');
 
   if (!token) {
     return <Login />;
@@ -28,7 +30,11 @@ function AppContent() {
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 grid grid-cols-1 md:grid-cols-4 gap-6 min-h-0 overflow-hidden">
         {/* Main columns for Tabs */}
         <div className="md:col-span-3 h-full flex flex-col min-h-0 overflow-hidden">
-          <Tabs defaultValue="month" className="w-full h-full flex flex-col gap-4 min-h-0 overflow-hidden">
+          <Tabs
+            value={activeTab}
+            onValueChange={(val) => setActiveTab(val as 'month' | 'config')}
+            className="w-full h-full flex flex-col gap-4 min-h-0 overflow-hidden"
+          >
             <TabsList className="grid w-full grid-cols-2 max-w-xs bg-muted/65 p-1 rounded-lg border border-border/50 shrink-0">
               <TabsTrigger value="month" className="flex items-center gap-1.5 text-xs font-semibold">
                 <CalendarDays className="h-4 w-4" />
@@ -49,10 +55,16 @@ function AppContent() {
           </Tabs>
         </div>
 
-        {/* Desktop Accounts Sidebar + Add Expense Form */}
+        {/* Desktop Right Column Slot: Accounts & AddExpense on 'month', TagManagementCard on 'config' */}
         <div className="hidden md:flex md:col-span-1 flex-col gap-6 h-full min-h-0 overflow-hidden">
-          <AccountsSidebar />
-          <AddExpenseForm />
+          {activeTab === 'month' ? (
+            <>
+              <AccountsSidebar />
+              <AddExpenseForm />
+            </>
+          ) : (
+            <TagManagementCard />
+          )}
         </div>
       </main>
 

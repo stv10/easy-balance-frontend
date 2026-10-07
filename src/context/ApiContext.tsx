@@ -7,11 +7,13 @@ import type {
   FixedExpense,
   Expense,
   SSPRequest,
-  SSPResponse
+  SSPResponse,
+  Tag
 } from '../types/api';
 
 interface ApiContextType {
   accounts: Account[];
+  tags: Tag[];
   summary: DashboardSummary | null;
   isLoading: boolean;
   token: string | null;
@@ -20,6 +22,7 @@ interface ApiContextType {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   loadAccounts: () => Promise<void>;
+  loadTags: () => Promise<void>;
   loadSummary: (yearMonth?: string) => Promise<void>;
   loadAll: (yearMonth?: string) => void;
   getConfig: () => Promise<BudgetConfig>;
@@ -27,6 +30,9 @@ interface ApiContextType {
   addAccount: (account: Account) => Promise<Account>;
   updateAccount: (id: string, account: Account) => Promise<Account>;
   deleteAccount: (id: string) => Promise<void>;
+  createTag: (tag: { name: string; icon?: string }) => Promise<Tag>;
+  updateTag: (id: string, tag: { name: string; icon: string }) => Promise<Tag>;
+  deleteTag: (id: string) => Promise<void>;
   getFixedExpenses: () => Promise<FixedExpense[]>;
   addFixedExpense: (expense: FixedExpense) => Promise<FixedExpense>;
   updateFixedExpense: (id: string, expense: FixedExpense) => Promise<FixedExpense>;
@@ -55,6 +61,7 @@ const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [expenseVersion, setExpenseVersion] = useState(0);
@@ -67,6 +74,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setToken(null);
     setUsername(null);
     setAccounts([]);
+    setTags([]);
     setSummary(null);
   };
 
@@ -113,6 +121,17 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const loadTags = async () => {
+    try {
+      const res = await authenticatedFetch(`${baseUrl}/tags`);
+      if (!res.ok) throw new Error('Failed to load tags');
+      const data = await res.json();
+      setTags(data);
+    } catch (err) {
+      console.error('Error loading tags:', err);
+    }
+  };
+
   const loadSummary = async (yearMonth?: string) => {
     try {
       const url = yearMonth
@@ -129,9 +148,47 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const loadAll = (yearMonth?: string) => {
     setIsLoading(true);
-    Promise.all([loadAccounts(), loadSummary(yearMonth)]).finally(() => {
+    Promise.all([loadAccounts(), loadSummary(yearMonth), loadTags()]).finally(() => {
       setIsLoading(false);
     });
+  };
+
+  const createTag = async (tagData: { name: string; icon?: string }): Promise<Tag> => {
+    const res = await authenticatedFetch(`${baseUrl}/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tagData),
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || 'Failed to create tag');
+    }
+    const created = await res.json();
+    setTags((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+    return created;
+  };
+
+  const updateTag = async (id: string, tagData: { name: string; icon: string }): Promise<Tag> => {
+    const res = await authenticatedFetch(`${baseUrl}/tags/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tagData),
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || 'Failed to update tag');
+    }
+    const updated = await res.json();
+    setTags((prev) => prev.map((t) => (t.id === id ? updated : t)).sort((a, b) => a.name.localeCompare(b.name)));
+    return updated;
+  };
+
+  const deleteTag = async (id: string): Promise<void> => {
+    const res = await authenticatedFetch(`${baseUrl}/tags/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete tag');
+    setTags((prev) => prev.filter((t) => t.id !== id));
   };
 
   const getConfig = async (): Promise<BudgetConfig> => {
@@ -299,6 +356,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <ApiContext.Provider
       value={{
         accounts,
+        tags,
         summary,
         isLoading,
         token,
@@ -307,6 +365,7 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         login,
         logout,
         loadAccounts,
+        loadTags,
         loadSummary,
         loadAll,
         getConfig,
@@ -314,6 +373,9 @@ export const ApiProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addAccount,
         updateAccount,
         deleteAccount,
+        createTag,
+        updateTag,
+        deleteTag,
         getFixedExpenses,
         addFixedExpense,
         updateFixedExpense,

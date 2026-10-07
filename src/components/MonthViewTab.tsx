@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
-import type { Expense, MonthlyFixedExpense, SSPFilter } from '../types/api';
+import type { Expense, MonthlyFixedExpense, SSPFilter, Tag } from '../types/api';
+import { TagSelect } from '@/components/ui/TagSelect';
+import { TagIcon } from '@/components/ui/TagIcon';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,6 +105,8 @@ export const MonthViewTab: React.FC = () => {
   const [newAmount, setNewAmount] = useState<string>('');
   const [newCategory, setNewCategory] = useState('VIDA');
   const [newAccountId, setNewAccountId] = useState<string>('NONE');
+  const [newTagId, setNewTagId] = useState<string | undefined>(undefined);
+  const [newTag, setNewTag] = useState<Tag | undefined>(undefined);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
 
   // Fixed expenses payment inputs mapping: feId -> { amount, accountId }
@@ -263,7 +267,9 @@ export const MonthViewTab: React.FC = () => {
         description,
         amount,
         category: newCategory,
-        accountId: newAccountId !== 'NONE' ? newAccountId : undefined
+        accountId: newAccountId !== 'NONE' ? newAccountId : undefined,
+        tag: newTag,
+        tagId: newTagId,
       };
 
       await addExpense(expenseToSave);
@@ -271,6 +277,8 @@ export const MonthViewTab: React.FC = () => {
       setNewDescription('');
       setNewAmount('');
       setNewAccountId('NONE');
+      setNewTagId(undefined);
+      setNewTag(undefined);
       loadAll(toYearMonthStr(currentDate));
       loadExpensesList();
     } catch (err) {
@@ -308,7 +316,9 @@ export const MonthViewTab: React.FC = () => {
         amount,
         category: fe.category,
         accountId: input.accountId !== 'NONE' ? input.accountId : undefined,
-        fixedExpenseId: fe.id
+        fixedExpenseId: fe.id,
+        tag: fe.tag,
+        tagId: fe.tag?.id,
       };
       await addExpense(expenseToSave);
       toast.success(`Pago de "${fe.description}" registrado`);
@@ -786,6 +796,12 @@ export const MonthViewTab: React.FC = () => {
                                 }`}>
                                 {fe.category}
                               </Badge>
+                              {fe.tag && (
+                                <Badge variant="secondary" className="gap-1 text-[10px] font-normal size-auto px-1.5 py-0.5">
+                                  <TagIcon name={fe.tag.icon} className="size-3 text-primary" />
+                                  <span>{fe.tag.name}</span>
+                                </Badge>
+                              )}
                             </div>
                             <span className="text-[10px] text-muted-foreground">
                               {fe.dueDay ? `Vence el día ${fe.dueDay}` : 'Sin vencimiento'}
@@ -929,12 +945,21 @@ export const MonthViewTab: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="w-full md:col-span-2">
+                    <TagSelect
+                      value={newTagId}
+                      onChange={(id, tag) => {
+                        setNewTagId(id);
+                        setNewTag(tag);
+                      }}
+                    />
+                  </div>
                   <Button
                     type="submit"
                     disabled={!newDescription.trim() || !newAmount || parseFloat(newAmount) <= 0 || isAddingExpense}
-                    className="h-9"
+                    className="h-9 md:col-span-2 font-semibold"
                   >
-                    <Plus className="h-4 w-4 mr-1" /> Cargar
+                    <Plus data-icon="inline-start" /> Cargar
                   </Button>
                 </form>
               </CardContent>
@@ -1016,9 +1041,10 @@ export const MonthViewTab: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-32">Fecha</TableHead>
+                        <TableHead className="w-28">Fecha</TableHead>
                         <TableHead>Descripción</TableHead>
-                        <TableHead className="w-28">Categoría</TableHead>
+                        <TableHead className="w-24">Categoría</TableHead>
+                        <TableHead className="w-28">Etiqueta</TableHead>
                         <TableHead className="w-32 text-right">Monto</TableHead>
                         <TableHead className="w-36">Cuenta</TableHead>
                         <TableHead className="w-12"></TableHead>
@@ -1027,7 +1053,7 @@ export const MonthViewTab: React.FC = () => {
                     <TableBody className="overflow-y-auto">
                       {expenses.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
+                          <TableCell colSpan={7} className="h-28 text-center text-muted-foreground">
                             <div className="flex flex-col items-center justify-center gap-2">
                               <SearchX className="h-8 w-8 stroke-[1.5] opacity-40" />
                               <span className="text-sm">No se encontraron movimientos registrados</span>
@@ -1055,6 +1081,16 @@ export const MonthViewTab: React.FC = () => {
                                 }`}>
                                 {row.category}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {row.tag ? (
+                                <Badge variant="secondary" className="gap-1 text-[10px] font-normal size-auto px-1.5 py-0.5">
+                                  <TagIcon name={row.tag.icon} className="size-3 text-primary" />
+                                  <span className="truncate max-w-[80px]">{row.tag.name}</span>
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground/50">-</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-right font-bold text-sm">
                               ${row.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

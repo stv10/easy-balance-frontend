@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
-import type { BudgetConfig, FixedExpense } from '../types/api';
+import type { BudgetConfig, FixedExpense, Tag } from '../types/api';
+import { CreateFixedExpenseDialog } from './CreateFixedExpenseDialog';
+import { TagManagementCard } from './TagManagementCard';
+import { TagSelect } from './ui/TagSelect';
+import { TagIcon } from './ui/TagIcon';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +39,6 @@ import {
   Settings,
   Receipt,
   Save,
-  Plus,
   Trash2,
   Pencil,
   ListCollapse,
@@ -47,7 +50,6 @@ export const ConfigTab: React.FC = () => {
     getConfig,
     updateConfig,
     getFixedExpenses: fetchFixedExpenses,
-    addFixedExpense,
     updateFixedExpense,
     deleteFixedExpense,
     loadSummary,
@@ -63,11 +65,6 @@ export const ConfigTab: React.FC = () => {
 
   // Template Fixed Expenses states
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
-  const [newDescription, setNewDescription] = useState('');
-  const [newAmount, setNewAmount] = useState<string>('');
-  const [newCategory, setNewCategory] = useState('VIDA');
-  const [newDueDay, setNewDueDay] = useState<string>('');
-  const [isAddingFixed, setIsAddingFixed] = useState(false);
 
   // Edit Fixed Expense states
   const [editingExpense, setEditingExpense] = useState<FixedExpense | null>(null);
@@ -75,6 +72,8 @@ export const ConfigTab: React.FC = () => {
   const [editAmount, setEditAmount] = useState<string>('');
   const [editCategory, setEditCategory] = useState('VIDA');
   const [editDueDay, setEditDueDay] = useState<string>('');
+  const [editTagId, setEditTagId] = useState<string | undefined>(undefined);
+  const [editTag, setEditTag] = useState<Tag | undefined>(undefined);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const categories = ['VIDA', 'OCIO', 'INVERSION'];
@@ -145,41 +144,6 @@ export const ConfigTab: React.FC = () => {
     }
   };
 
-  // Add fixed expense template
-  const handleAddFixedExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const description = newDescription.trim();
-    const amount = parseFloat(newAmount);
-    const dueDay = newDueDay ? parseInt(newDueDay) : undefined;
-
-    if (!description || isNaN(amount) || amount <= 0) return;
-    if (dueDay !== undefined && (dueDay < 1 || dueDay > 31)) {
-      toast.error('El día de vencimiento debe estar entre 1 y 31');
-      return;
-    }
-
-    setIsAddingFixed(true);
-    try {
-      await addFixedExpense({
-        description,
-        amount,
-        category: newCategory,
-        dueDay
-      });
-      toast.success('Gasto fijo agregado a la plantilla');
-      setNewDescription('');
-      setNewAmount('');
-      setNewCategory('VIDA');
-      setNewDueDay('');
-      loadFixedExpensesData();
-      loadSummary();
-    } catch (err) {
-      toast.error('Error al agregar el gasto fijo');
-    } finally {
-      setIsAddingFixed(false);
-    }
-  };
-
   // Delete fixed expense template
   const handleDeleteFixedExpense = async (id?: string) => {
     if (!id) return;
@@ -200,6 +164,8 @@ export const ConfigTab: React.FC = () => {
     setEditAmount(expense.amount.toString());
     setEditCategory(expense.category);
     setEditDueDay(expense.dueDay ? expense.dueDay.toString() : '');
+    setEditTagId(expense.tag?.id);
+    setEditTag(expense.tag);
   };
 
   const handleSaveEdit = async () => {
@@ -225,7 +191,9 @@ export const ConfigTab: React.FC = () => {
         description,
         amount,
         category: editCategory,
-        dueDay
+        dueDay,
+        tag: editTag,
+        tagId: editTagId,
       });
       toast.success('Gasto fijo actualizado');
       setEditingExpense(null);
@@ -440,86 +408,31 @@ export const ConfigTab: React.FC = () => {
 
       {/* Gastos Fijos / Plantilla Mensual Card */}
       <Card className="border-border shadow-sm">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
           <CardTitle className="text-lg font-bold flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
             Cosas a Pagar en el Mes (Gastos Fijos)
           </CardTitle>
+          <CreateFixedExpenseDialog onExpenseAdded={loadFixedExpensesData} />
         </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-
-          {/* Add form */}
-          <form onSubmit={handleAddFixedExpense} className="flex flex-col md:flex-row gap-3">
-            <div className="flex-[2] min-w-[200px]">
-              <Input
-                placeholder="Descripción (ej. Alquiler, Internet)"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                required
-                className="h-9"
-              />
-            </div>
-            <div className="flex-1 min-w-[100px]">
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Monto ($)"
-                value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
-                required
-                className="h-9"
-              />
-            </div>
-            <div className="w-full md:w-36">
-              <Select value={newCategory} onValueChange={(val) => setNewCategory(val || 'VIDA')}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full md:w-32">
-              <Input
-                type="number"
-                min="1"
-                max="31"
-                placeholder="Día Venc."
-                value={newDueDay}
-                onChange={(e) => setNewDueDay(e.target.value)}
-                className="h-9"
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={!newDescription.trim() || !newAmount || parseFloat(newAmount) <= 0 || isAddingFixed}
-              className="h-9 shrink-0"
-            >
-              <Plus className="h-4 w-4 mr-1" /> Agregar
-            </Button>
-          </form>
-
+        <CardContent className="flex flex-col gap-4">
           {/* Table */}
-          <div className="rounded-md border border-border overflow-auto max-h-[290px]">
+          <div className="rounded-md border border-border overflow-auto max-h-[350px]">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Descripción</TableHead>
-                  <TableHead className="w-28">Categoría</TableHead>
-                  <TableHead className="w-40 text-right">Monto Presupuestado</TableHead>
-                  <TableHead className="w-44">Vencimiento</TableHead>
-                  <TableHead className="w-24 text-right"></TableHead>
+                  <TableHead className="w-24">Categoría</TableHead>
+                  <TableHead className="w-28">Etiqueta</TableHead>
+                  <TableHead className="w-36 text-right">Monto Presupuestado</TableHead>
+                  <TableHead className="w-36">Vencimiento</TableHead>
+                  <TableHead className="w-20 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {fixedExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       <div className="flex flex-col items-center justify-center gap-1.5">
                         <ListCollapse className="h-8 w-8 stroke-[1.5] opacity-40" />
                         <span className="text-sm">No hay gastos fijos registrados en la plantilla</span>
@@ -537,6 +450,16 @@ export const ConfigTab: React.FC = () => {
                           }`}>
                           {row.category}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {row.tag ? (
+                          <Badge variant="secondary" className="gap-1 text-[10px] font-normal size-auto px-1.5 py-0.5">
+                            <TagIcon name={row.tag.icon} className="size-3 text-primary" />
+                            <span className="truncate max-w-[80px]">{row.tag.name}</span>
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-semibold text-sm">
                         ${row.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -611,20 +534,33 @@ export const ConfigTab: React.FC = () => {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">Categoría</label>
-              <Select value={editCategory} onValueChange={(val) => setEditCategory(val || 'VIDA')}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium">Categoría</label>
+                <Select value={editCategory} onValueChange={(val) => setEditCategory(val || 'VIDA')}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(cat => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium">Etiqueta</label>
+                <TagSelect
+                  value={editTagId}
+                  onChange={(newId, newTag) => {
+                    setEditTagId(newId);
+                    setEditTag(newTag);
+                  }}
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -648,6 +584,11 @@ export const ConfigTab: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile only: Tag management card */}
+      <div className="md:hidden mt-2">
+        <TagManagementCard />
+      </div>
     </div>
   );
 };
